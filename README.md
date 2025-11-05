@@ -2,9 +2,7 @@
 
 Quickly embed all pages of a PDF file as individual page references in your Obsidian notes.
 
-<div align="center">
-	![Demo](demo.gif)
-</div>
+![Demo](demo.gif)
 
 ## Features
 
