@@ -2,6 +2,8 @@
 
 Quickly embed all pages of a PDF file as individual page references in your Obsidian notes.
 
+![Demo](demo.gif)
+
 ## Features
 
 - 🚀 Insert all PDF pages with a single command
@@ -40,7 +42,7 @@ Each page can be viewed, annotated, and referenced individually in Obsidian.
 
 ## Installation
 
-### From Obsidian Community Plugins (Recommended)
+### From Obsidian Community Plugins (comming!)
 1. Open Settings → Community Plugins
 2. Search for "PDF Page Embedder"
 3. Click Install, then Enable
