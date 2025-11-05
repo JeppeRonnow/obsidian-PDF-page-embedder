@@ -1,37 +1,70 @@
-import { Plugin, TFile, Notice, SuggestModal } from "obsidian";
+import {
+	Plugin,
+	TFile,
+	Notice,
+	SuggestModal,
+	PluginSettingTab,
+	Setting,
+	App,
+} from "obsidian";
 
-interface MyPluginSettings {
-	mySetting: string;
+interface PDFPageEmbedderSettings {
+	skipFirstPages: number;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: "default",
+const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
+	skipFirstPages: 0,
 };
 
-export default class PDFPageEmbedderPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class PDFtoPageMdPlugin extends Plugin {
+	settings: PDFPageEmbedderSettings;
 
 	async onload() {
 		await this.loadSettings();
 
+		// Add settings tab
+		this.addSettingTab(new PDFPageEmbedderSettingTab(this.app, this));
+
 		// Add command to convert PDF to pages
 		this.addCommand({
-			id: "embed-PDF-as-individual-pages",
+			id: "convert-pdf-to-pages",
 			name: "Embed PDF as individual pages",
 			editorCallback: (editor) => {
 				new PDFSelectorModal(this.app, async (file: TFile) => {
 					// Get number of pages in PDF
 					const pageCount = await this.getPDFPageCount(file);
 
+					// Calculate starting page based on settings
+					const startPage = this.settings.skipFirstPages + 1;
+
+					if (startPage > pageCount) {
+						new Notice(
+							`PDF only has ${pageCount} pages. Cannot skip ${this.settings.skipFirstPages} pages.`,
+						);
+						return;
+					}
+
 					// Generate the page embeds
 					let content = "";
-					for (let i = 1; i <= pageCount; i++) {
-						content += `![[${file.name}#page=${i}]]\n\n`;
+					for (let i = startPage; i <= pageCount; i++) {
+						content += `![[${file.name}#page=${i}]]\n`;
 					}
+
+					const pagesInserted =
+						pageCount - this.settings.skipFirstPages;
 
 					// Insert at cursor position
 					editor.replaceSelection(content);
-					new Notice(`Inserted ${pageCount} pages from ${file.name}`);
+
+					if (this.settings.skipFirstPages > 0) {
+						new Notice(
+							`Inserted ${pagesInserted} pages from ${file.name} (skipped first ${this.settings.skipFirstPages})`,
+						);
+					} else {
+						new Notice(
+							`Inserted ${pagesInserted} pages from ${file.name}`,
+						);
+					}
 				}).open();
 			},
 		});
@@ -106,5 +139,40 @@ class PDFSelectorModal extends SuggestModal<TFile> {
 
 	onChooseSuggestion(file: TFile) {
 		this.onSelectCallback(file);
+	}
+}
+
+class PDFPageEmbedderSettingTab extends PluginSettingTab {
+	plugin: PDFtoPageMdPlugin;
+
+	constructor(app: App, plugin: PDFtoPageMdPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+
+		containerEl.empty();
+
+		containerEl.createEl("h2", { text: "PDF Page Embedder Settings" });
+
+		new Setting(containerEl)
+			.setName("Skip first pages")
+			.setDesc(
+				"Number of pages to skip from the beginning (useful for cover pages, title pages, etc.)",
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("0")
+					.setValue(String(this.plugin.settings.skipFirstPages))
+					.onChange(async (value) => {
+						const numValue = parseInt(value);
+						if (!isNaN(numValue) && numValue >= 0) {
+							this.plugin.settings.skipFirstPages = numValue;
+							await this.plugin.saveSettings();
+						}
+					}),
+			);
 	}
 }
