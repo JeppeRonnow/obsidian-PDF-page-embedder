@@ -31,9 +31,9 @@ Each page can be viewed, annotated, and referenced individually in Obsidian.
 
 ## TODO
 ### Planned Features
-- [ ] **Skip first N pages**
-- [ ] **Insert page range**
-- [ ] **Insert page range (from-to)**
+- [x] **Skip first N pages**
+- [x] **Insert page range**
+- [x] **Insert page range (from-to)**
 - [ ] **Custom page format templates**
 - [ ] **Every Nth page** *(useful for double-sided scans)*
 - [ ] **Preview mode**
