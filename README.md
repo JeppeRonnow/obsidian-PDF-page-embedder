@@ -54,8 +54,6 @@ Each page can be viewed, annotated, and referenced individually in Obsidian.
 ## Use Cases
 
 - 📚 Study notes: Embed textbook or article pages for annotation
-- 📋 Documentation: Reference specific pages from PDF manuals
-- 📝 Research: Quick access to journal article pages
 - 🎓 Lecture notes: Embed presentation slides page by page
 
 ## License
