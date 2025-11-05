@@ -5,8 +5,6 @@ Quickly embed all pages of a PDF file as individual page references in your Obsi
 ## Features
 
 - 🚀 Insert all PDF pages with a single command
-- 📄 Automatically detects the number of pages in your PDF
-- 🔍 Search and select from your most recently added PDFs
 - ⚡ Simple and fast workflow
 
 ## Usage
