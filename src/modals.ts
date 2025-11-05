@@ -214,3 +214,75 @@ export class StartPageModal extends Modal {
 		contentEl.empty();
 	}
 }
+
+export class SinglePageModal extends Modal {
+	file: TFile;
+	pageCount: number;
+	onSubmit: (page: number) => void;
+	pageInput: string = "";
+
+	constructor(
+		app: App,
+		file: TFile,
+		pageCount: number,
+		onSubmit: (page: number) => void,
+	) {
+		super(app);
+		this.file = file;
+		this.pageCount = pageCount;
+		this.onSubmit = onSubmit;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+
+		contentEl.empty();
+		contentEl.createEl("h2", { text: "Select page to embed" });
+		contentEl.createEl("p", {
+			text: `PDF: ${this.file.name} (${this.pageCount} pages)`,
+			cls: "pdf-info",
+		});
+
+		new Setting(contentEl)
+			.setName("Page number")
+			.setDesc(`Page to embed (1-${this.pageCount})`)
+			.addText((text) =>
+				text
+					.setPlaceholder("1")
+					.setValue(this.pageInput)
+					.onChange((value) => {
+						this.pageInput = value;
+					}),
+			);
+
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Insert")
+					.setCta()
+					.onClick(() => {
+						const page = parseInt(this.pageInput) || 1;
+
+						if (page < 1 || page > this.pageCount) {
+							new Notice(
+								`Page must be between 1 and ${this.pageCount}`,
+							);
+							return;
+						}
+
+						this.close();
+						this.onSubmit(page);
+					}),
+			)
+			.addButton((btn) =>
+				btn.setButtonText("Cancel").onClick(() => {
+					this.close();
+				}),
+			);
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}

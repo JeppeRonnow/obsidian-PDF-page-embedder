@@ -1,5 +1,10 @@
 import { Editor, Notice } from "obsidian";
-import { PDFSelectorModal, PageRangeModal, StartPageModal } from "./modals";
+import {
+	PDFSelectorModal,
+	PageRangeModal,
+	StartPageModal,
+	SinglePageModal,
+} from "./modals";
 import { getPDFPageCount, generatePageEmbeds } from "./utils";
 import PDFPageEmbedderPlugin from "./main";
 
@@ -94,6 +99,23 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 						);
 					},
 				).open();
+			}).open();
+		},
+	});
+	// Command 4: Embed single page
+	plugin.addCommand({
+		id: "embed-pdf-single-page",
+		name: "Embed single PDF page",
+		editorCallback: (editor: Editor) => {
+			new PDFSelectorModal(plugin.app, async (file) => {
+				const pageCount = await getPDFPageCount(plugin.app, file);
+
+				new SinglePageModal(plugin.app, file, pageCount, (page) => {
+					const content = `![[${file.name}#page=${page}]]\n`;
+
+					editor.replaceSelection(content);
+					new Notice(`Inserted page ${page} from ${file.name}`);
+				}).open();
 			}).open();
 		},
 	});
