@@ -22,8 +22,6 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
-		"@codemirror/state": "^6.5.2",
-		"@codemirror/view": "^6.38.6",
 		"pdf-lib": "^1.17.1"
 	}
 }

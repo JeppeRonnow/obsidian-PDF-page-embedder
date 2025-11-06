@@ -21,7 +21,9 @@ export function generatePageEmbeds(
 ): string {
 	let content = "";
 	for (let i = startPage; i <= endPage; i++) {
-		content += `!{{${fileName}#page=${i}}}\n\n`;
+		content += "```pdf-page\n";
+		content += `${fileName}#${i}\n`;
+		content += "```\n\n";
 	}
 	return content;
 }
