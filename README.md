@@ -38,7 +38,6 @@ Each page can be viewed, annotated, and referenced individually in Obsidian.
 - [ ] **Every Nth page** *(useful for double-sided scans)*
 - [ ] **Preview mode**
 - [ ] **Custom separators**
-- [ ] **Hotkey support for quick access**
 - [ ] **Custom PDF veiwer**
 
 ## Installation
