@@ -18,12 +18,23 @@ export function generatePageEmbeds(
 	fileName: string,
 	startPage: number,
 	endPage: number,
+	useNativeViewer: boolean,
 ): string {
 	let content = "";
-	for (let i = startPage; i <= endPage; i++) {
-		content += "```pdf-page\n";
-		content += `${fileName}#${i}\n`;
-		content += "```\n\n";
+
+	if (useNativeViewer) {
+		// Use native Obsidian syntax
+		for (let i = startPage; i <= endPage; i++) {
+			content += `![[${fileName}#page=${i}]]\n\n`;
+		}
+	} else {
+		// Use custom code block syntax
+		for (let i = startPage; i <= endPage; i++) {
+			content += "```pdf-page\n";
+			content += `${fileName}#${i}\n`;
+			content += "```\n\n";
+		}
 	}
+
 	return content;
 }

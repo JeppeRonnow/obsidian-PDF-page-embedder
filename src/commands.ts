@@ -29,6 +29,7 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 					file.name,
 					startPage,
 					pageCount,
+					plugin.settings.useNativeViewer,
 				);
 				const pagesInserted =
 					pageCount - plugin.settings.skipFirstPages;
@@ -61,6 +62,7 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 						file.name,
 						startPage,
 						pageCount,
+						plugin.settings.useNativeViewer,
 					);
 					const pagesInserted = pageCount - startPage + 1;
 
@@ -90,6 +92,7 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 							file.name,
 							startPage,
 							endPage,
+							plugin.settings.useNativeViewer,
 						);
 						const pagesInserted = endPage - startPage + 1;
 
@@ -102,6 +105,7 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 			}).open();
 		},
 	});
+
 	// Command 4: Embed single page
 	plugin.addCommand({
 		id: "embed-pdf-single-page",
@@ -111,7 +115,15 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 				const pageCount = await getPDFPageCount(plugin.app, file);
 
 				new SinglePageModal(plugin.app, file, pageCount, (page) => {
-					const content = `!{{${file.name}#page=${page}}}\n`;
+					let content: string;
+
+					if (plugin.settings.useNativeViewer) {
+						content = `![[${file.name}#page=${page}]]\n`;
+					} else {
+						content = "```pdf-page\n";
+						content += `${file.name}#${page}\n`;
+						content += "```\n";
+					}
 
 					editor.replaceSelection(content);
 					new Notice(`Inserted page ${page} from ${file.name}`);

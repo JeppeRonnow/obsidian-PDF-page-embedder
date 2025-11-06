@@ -26,6 +26,19 @@
 	display: block;
 }
 
+/* Native PDF Viewer Container */
+.pdf-page-native-container {
+	margin: 1em 0;
+	width: 100%;
+}
+
+.pdf-page-native-container iframe {
+	width: 100%;
+	min-height: 600px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+}
+
 /* Error State */
 .pdf-page-embed-error {
 	padding: 1em;

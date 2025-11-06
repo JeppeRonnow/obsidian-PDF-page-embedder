@@ -67,7 +67,7 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			return;
 		}
 
-		// Render the PDF page
+		// Always use custom renderer for code blocks
 		const renderer = new PDFPageRenderer(el, file, page, this.app, width);
 		ctx.addChild(renderer);
 	}

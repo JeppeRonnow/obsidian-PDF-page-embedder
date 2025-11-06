@@ -3,10 +3,12 @@ import PDFPageEmbedderPlugin from "./main";
 
 export interface PDFPageEmbedderSettings {
 	skipFirstPages: number;
+	useNativeViewer: boolean;
 }
 
 export const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
 	skipFirstPages: 0,
+	useNativeViewer: false,
 };
 
 export class PDFPageEmbedderSettingTab extends PluginSettingTab {
@@ -39,6 +41,20 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 							this.plugin.settings.skipFirstPages = numValue;
 							await this.plugin.saveSettings();
 						}
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Use Obsidian native PDF viewer")
+			.setDesc(
+				"Generate ![[pdf#page=X]] syntax instead of custom code blocks. Not recommended (slower, less control).",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.useNativeViewer)
+					.onChange(async (value) => {
+						this.plugin.settings.useNativeViewer = value;
+						await this.plugin.saveSettings();
 					}),
 			);
 	}
