@@ -9,6 +9,9 @@
 	border-radius: 8px;
 	border: 1px solid var(--background-modifier-border);
 	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: hidden; /* Prevent overflow */
 }
 
 .pdf-page-canvas-wrapper {
@@ -16,10 +19,11 @@
 	max-width: 100%;
 	display: flex;
 	justify-content: center;
+	overflow: hidden;
 }
 
 .pdf-page-canvas {
-	width: 100%;
+	max-width: 100%;
 	height: auto;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	border-radius: 4px;
