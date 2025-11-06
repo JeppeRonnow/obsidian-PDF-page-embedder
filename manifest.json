@@ -1,7 +1,7 @@
 {
 	"id": "pdf-page-embedder",
 	"name": "PDF Page Embedder",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "Quickly embed all pages of a PDF as individual page references. Select a PDF and insert all pages with one command.",
 	"author": "Jeppe Ronnow",
