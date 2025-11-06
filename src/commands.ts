@@ -111,7 +111,7 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 				const pageCount = await getPDFPageCount(plugin.app, file);
 
 				new SinglePageModal(plugin.app, file, pageCount, (page) => {
-					const content = `![[${file.name}#page=${page}]]\n`;
+					const content = `!{{${file.name}#page=${page}}}\n`;
 
 					editor.replaceSelection(content);
 					new Notice(`Inserted page ${page} from ${file.name}`);
