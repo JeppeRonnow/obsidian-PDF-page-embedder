@@ -39,6 +39,7 @@ Each page can be viewed, annotated, and referenced individually in Obsidian.
 - [ ] **Preview mode**
 - [ ] **Custom separators**
 - [ ] **Hotkey support for quick access**
+- [ ] **Custom PDF veiwer**
 
 ## Installation
 
