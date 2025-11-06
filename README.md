@@ -7,38 +7,57 @@ Quickly embed all pages of a PDF file as individual page references in your Obsi
 ## Features
 
 - 🚀 Insert all PDF pages with a single command
-- ⚡ Simple and fast workflow
+- ⚡ Custom PDF renderer - fast, clean, single-page view
+- 🎯 Multiple insertion modes (all pages, page ranges, single pages)
+- ⚙️ Configurable settings for default behavior
 
 ## Usage
 
+### Basic Workflow
+
 1. Open a markdown note where you want to embed PDF pages
-2. Run the command `Embed PDF as individual pages` (Ctrl/Cmd + P)
+2. Run a command from the command palette (Ctrl/Cmd + P)
 3. Select a PDF from the list (sorted by most recent)
-4. All pages will be inserted at your cursor position
+4. Pages will be inserted at your cursor position
+
+### Available Commands
+
+- **Embed PDF as individual pages** - Insert all pages (respects skip settings)
+- **Embed PDF from page to end** - Insert from a specific page to the end
+- **Embed PDF page range** - Insert a specific range of pages
+- **Embed single PDF page** - Insert just one page
 
 ### Output Format
-```markdown
-![[your-pdf.pdf#page=1]]
 
-![[your-pdf.pdf#page=2]]
-
-![[your-pdf.pdf#page=3]]
-
-![[your-pdf.pdf#page=4]]
+By default, uses custom code block syntax with fast rendering:
+````markdown
+```pdf-page
+your-pdf.pdf#1
 ```
+```pdf-page
+your-pdf.pdf#2
+```
+````
+## Custom PDF Renderer
 
-Each page can be viewed, annotated, and referenced individually in Obsidian.
+The plugin includes a custom PDF renderer that provides:
+
+✅ **Fast rendering** - Loads once, renders specific pages quickly
+✅ **Single-page view** - No scrolling, just the page you want
+✅ **Automatic sizing** - Fits perfectly within your note width
+✅ **Clean appearance** - No extra UI clutter
 
 ## TODO
 ### Planned Features
 - [x] **Skip first N pages**
 - [x] **Insert page range**
 - [x] **Insert page range (from-to)**
+- [x] **Custom PDF veiwer**
+
 - [ ] **Custom page format templates**
 - [ ] **Every Nth page** *(useful for double-sided scans)*
 - [ ] **Preview mode**
 - [ ] **Custom separators**
-- [ ] **Custom PDF veiwer**
 
 ## Installation
 
