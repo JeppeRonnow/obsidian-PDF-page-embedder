@@ -5,6 +5,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	pageNumber: number;
 	app: any;
 	width: string | null;
+	pdfDocument: any = null;
+	renderTask: any = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -27,8 +29,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Validate page number using PDF.js
 			const pdfjsLib = await this.loadPDFJS();
 			const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-			const pdf = await loadingTask.promise;
-			const totalPages = pdf.numPages;
+			this.pdfDocument = await loadingTask.promise;
+			const totalPages = this.pdfDocument.numPages;
 
 			if (this.pageNumber < 1 || this.pageNumber > totalPages) {
 				this.renderError(
@@ -38,7 +40,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			}
 
 			// Render the PDF page
-			await this.renderPDFPage(pdf, this.pageNumber);
+			await this.renderPDFPage(this.pdfDocument, this.pageNumber);
 		} catch (error) {
 			console.error("Error rendering PDF:", error);
 			this.renderError("Failed to load PDF page.");
@@ -58,11 +60,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			cls: "pdf-page-canvas-wrapper",
 		});
 
-		// Apply width if specified
-		if (this.width) {
-			canvasWrapper.style.width = this.width;
-		}
-
 		// Create canvas for rendering
 		const canvas = canvasWrapper.createEl("canvas");
 		canvas.addClass("pdf-page-canvas");
@@ -72,8 +69,9 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 		// Determine target width
 		let targetWidth: number;
+
 		if (this.width) {
-			// Parse width (could be px, %, etc.)
+			// User specified a custom width
 			const tempDiv = document.createElement("div");
 			tempDiv.style.width = this.width;
 			tempDiv.style.position = "absolute";
@@ -82,8 +80,19 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			targetWidth = tempDiv.offsetWidth;
 			document.body.removeChild(tempDiv);
 		} else {
-			// Default: use full content width
-			targetWidth = container.parentElement?.clientWidth || 800;
+			// Default: use available content width, accounting for padding
+			const containerWidth =
+				container.clientWidth || container.offsetWidth;
+			const parentWidth = container.parentElement?.clientWidth || 800;
+
+			const availableWidth = Math.min(containerWidth, parentWidth) - 32;
+			targetWidth =
+				availableWidth > 0 ? availableWidth : parentWidth - 32;
+		}
+
+		// Make sure we don't exceed the PDF's natural width
+		if (targetWidth > baseViewport.width) {
+			targetWidth = baseViewport.width;
 		}
 
 		// Calculate scale to fit target width
@@ -100,7 +109,28 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			viewport: viewport,
 		};
 
-		await page.render(renderContext).promise;
+		this.renderTask = page.render(renderContext);
+		await this.renderTask.promise;
+
+		// Clean up the page object
+		page.cleanup();
+	}
+
+	onunload() {
+		// Cancel any pending render tasks
+		if (this.renderTask) {
+			this.renderTask.cancel();
+			this.renderTask = null;
+		}
+
+		// Destroy the PDF document to free memory
+		if (this.pdfDocument) {
+			this.pdfDocument.destroy();
+			this.pdfDocument = null;
+		}
+
+		// Clear the container
+		this.containerEl.empty();
 	}
 
 	async loadPDFJS(): Promise<any> {
