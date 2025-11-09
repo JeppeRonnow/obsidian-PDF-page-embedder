@@ -1,33 +1,42 @@
 import { MarkdownRenderChild, TFile } from "obsidian";
+import { PDFCache } from "./pdf-cache";
 
 export class PDFPageRenderer extends MarkdownRenderChild {
 	file: TFile;
 	pageNumber: number;
 	app: any;
 	width: string | null;
+	pdfCache: PDFCache;
+	renderTask: any = null;
+	canvas: HTMLCanvasElement | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
 		file: TFile,
 		pageNumber: number,
 		app: any,
+		pdfCache: PDFCache,
 		width: string | null = null,
 	) {
 		super(containerEl);
 		this.file = file;
 		this.pageNumber = pageNumber;
 		this.app = app;
+		this.pdfCache = pdfCache;
 		this.width = width;
 	}
 
 	async onload() {
 		try {
-			const arrayBuffer = await this.app.vault.readBinary(this.file);
-
-			// Validate page number using PDF.js
 			const pdfjsLib = await this.loadPDFJS();
-			const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-			const pdf = await loadingTask.promise;
+
+			// Use cache to get PDF document
+			const pdf = await this.pdfCache.get(this.file.path, async () => {
+				const arrayBuffer = await this.app.vault.readBinary(this.file);
+				const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+				return await loadingTask.promise;
+			});
+
 			const totalPages = pdf.numPages;
 
 			if (this.pageNumber < 1 || this.pageNumber > totalPages) {
@@ -40,67 +49,119 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Render the PDF page
 			await this.renderPDFPage(pdf, this.pageNumber);
 		} catch (error) {
-			console.error("Error rendering PDF:", error);
-			this.renderError("Failed to load PDF page.");
+			console.error("Error rendering PDF:", this.file.path, error);
+			const errorMessage = error instanceof Error ? error.message : "Unknown error";
+			this.renderError(`Failed to load PDF page: ${errorMessage}`);
 		}
 	}
 
 	async renderPDFPage(pdf: any, pageNumber: number) {
-		const container = this.containerEl;
-		container.empty();
-		container.addClass("pdf-page-embed-container");
+		try {
+			const container = this.containerEl;
+			container.empty();
+			container.addClass("pdf-page-embed-container");
 
-		// Get the specific page
-		const page = await pdf.getPage(pageNumber);
+			// Get the specific page
+			const page = await pdf.getPage(pageNumber);
 
-		// Create wrapper for the canvas
-		const canvasWrapper = container.createEl("div", {
-			cls: "pdf-page-canvas-wrapper",
-		});
+			// Create wrapper for the canvas
+			const canvasWrapper = container.createEl("div", {
+				cls: "pdf-page-canvas-wrapper",
+			});
 
-		// Apply width if specified
-		if (this.width) {
-			canvasWrapper.style.width = this.width;
+			// Apply custom width to wrapper if specified
+			if (this.width) {
+				canvasWrapper.style.width = this.width;
+				console.log(`[PDF Width Debug] Page ${this.pageNumber} - Applied custom width to wrapper: ${this.width}`);
+			} else {
+				// Default: fill container width
+				canvasWrapper.style.width = "100%";
+			}
+			canvasWrapper.style.display = "block";
+
+			// Create canvas for rendering
+			this.canvas = canvasWrapper.createEl("canvas");
+			this.canvas.addClass("pdf-page-canvas");
+
+			// Make canvas responsive with CSS - always fill wrapper
+			this.canvas.style.width = "100%";
+			this.canvas.style.height = "auto";
+			this.canvas.style.display = "block";
+
+			// Get viewport - render at a consistent high resolution
+			// CSS will scale it down to fit the container
+			const baseViewport = page.getViewport({ scale: 1 });
+
+			// Use a scale that gives good quality at typical screen sizes
+			// Render at ~2x the typical reading width for crisp display
+			const renderScale = 2.0;
+			const viewport = page.getViewport({ scale: renderScale });
+
+			console.log(`[PDF Width Debug] Page ${this.pageNumber} - Rendering at scale ${renderScale}, native PDF width: ${baseViewport.width}px, render width: ${viewport.width}px`);
+
+			const context = this.canvas.getContext("2d");
+			if (!context) {
+				throw new Error("Could not get canvas context");
+			}
+
+			// Set canvas internal dimensions (for rendering resolution)
+			this.canvas.height = viewport.height;
+			this.canvas.width = viewport.width;
+
+			// Render the page
+			const renderContext = {
+				canvasContext: context,
+				viewport: viewport,
+			};
+
+			this.renderTask = page.render(renderContext);
+
+			try {
+				await this.renderTask.promise;
+			} catch (error: any) {
+				// Ignore cancellation errors
+				if (error.name !== "RenderingCancelledException") {
+					throw error;
+				}
+			}
+
+			// Clean up the page object immediately after rendering
+			page.cleanup();
+		} catch (error) {
+			console.error("Error rendering PDF page:", this.file.path, pageNumber, error);
+			const errorMessage = error instanceof Error ? error.message : "Unknown error";
+			this.renderError(`Failed to render page ${pageNumber}: ${errorMessage}`);
+		}
+	}
+
+	onunload() {
+		// Cancel any pending render tasks
+		if (this.renderTask) {
+			try {
+				this.renderTask.cancel();
+			} catch (e) {
+				// Ignore errors on cancel
+			}
+			this.renderTask = null;
 		}
 
-		// Create canvas for rendering
-		const canvas = canvasWrapper.createEl("canvas");
-		canvas.addClass("pdf-page-canvas");
-
-		// Get viewport and calculate scale to fit container width
-		const baseViewport = page.getViewport({ scale: 1 });
-
-		// Determine target width
-		let targetWidth: number;
-		if (this.width) {
-			// Parse width (could be px, %, etc.)
-			const tempDiv = document.createElement("div");
-			tempDiv.style.width = this.width;
-			tempDiv.style.position = "absolute";
-			tempDiv.style.visibility = "hidden";
-			document.body.appendChild(tempDiv);
-			targetWidth = tempDiv.offsetWidth;
-			document.body.removeChild(tempDiv);
-		} else {
-			// Default: use full content width
-			targetWidth = container.parentElement?.clientWidth || 800;
+		// Clear canvas to free memory
+		if (this.canvas) {
+			const context = this.canvas.getContext("2d");
+			if (context) {
+				context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+			}
+			// Set canvas to minimal size to free memory
+			this.canvas.width = 1;
+			this.canvas.height = 1;
+			this.canvas = null;
 		}
 
-		// Calculate scale to fit target width
-		const scale = targetWidth / baseViewport.width;
-		const viewport = page.getViewport({ scale: scale });
+		// Release PDF from cache
+		this.pdfCache.release(this.file.path);
 
-		const context = canvas.getContext("2d");
-		canvas.height = viewport.height;
-		canvas.width = viewport.width;
-
-		// Render the page
-		const renderContext = {
-			canvasContext: context,
-			viewport: viewport,
-		};
-
-		await page.render(renderContext).promise;
+		// Clear the container
+		this.containerEl.empty();
 	}
 
 	async loadPDFJS(): Promise<any> {
@@ -132,6 +193,72 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			cls: "pdf-error-message",
 			text: message,
 		});
+	}
+
+	private parseWidth(width: string, container: HTMLElement): number {
+		// Handle percentage widths
+		if (width.endsWith('%')) {
+			const percentage = parseFloat(width);
+			const containerWidth = container.parentElement?.clientWidth || 600;
+			return (containerWidth * percentage) / 100;
+		}
+		
+		// Handle pixel values
+		if (width.endsWith('px')) {
+			return parseFloat(width);
+		}
+		
+		// For any other value, try to parse as number (assume pixels)
+		const parsed = parseFloat(width);
+		return isNaN(parsed) ? 600 : parsed;
+	}
+
+	private getContainerWidth(container: HTMLElement): number {
+		// Traverse up the DOM to find the markdown content container
+		let current: HTMLElement | null = container;
+		let candidateWidth = 0;
+
+		console.log(`[PDF Width Debug] Starting DOM traversal from:`, container.className);
+
+		// Look up the tree for content containers
+		while (current) {
+			const width = current.clientWidth;
+			console.log(`[PDF Width Debug] Checking element:`, {
+				className: current.className,
+				clientWidth: width,
+				tagName: current.tagName,
+			});
+
+			// Look for Obsidian's markdown preview containers
+			if (
+				current.classList.contains('markdown-preview-view') ||
+				current.classList.contains('markdown-preview-section') ||
+				current.classList.contains('cm-content') ||
+				current.classList.contains('cm-contentContainer')
+			) {
+				console.log(`[PDF Width Debug] Found markdown container with width: ${width}px`);
+				if (width > candidateWidth) {
+					candidateWidth = width;
+				}
+			}
+
+			// Keep track of the largest reasonable width we find
+			if (width > candidateWidth && width < 2000) {
+				candidateWidth = width;
+			}
+
+			current = current.parentElement;
+		}
+
+		// If we found a reasonable width, use it
+		if (candidateWidth > 200) {
+			console.log(`[PDF Width Debug] Using candidate width: ${candidateWidth}px`);
+			return candidateWidth;
+		}
+
+		// Fallback
+		console.log(`[PDF Width Debug] Using fallback width: 600px`);
+		return 600;
 	}
 }
 

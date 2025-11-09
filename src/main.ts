@@ -6,12 +6,17 @@ import {
 } from "./settings";
 import { registerCommands } from "./commands";
 import { PDFPageRenderer, parsePDFPageBlock } from "./renderer";
+import { PDFCache } from "./pdf-cache";
 
 export default class PDFPageEmbedderPlugin extends Plugin {
 	settings: PDFPageEmbedderSettings;
+	pdfCache: PDFCache;
 
 	async onload() {
 		await this.loadSettings();
+
+		// Initialize PDF cache
+		this.pdfCache = new PDFCache();
 
 		// Add settings tab
 		this.addSettingTab(new PDFPageEmbedderSettingTab(this.app, this));
@@ -33,6 +38,9 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 		el: HTMLElement,
 		ctx: MarkdownPostProcessorContext,
 	) {
+		// Clear any default rendering
+		el.empty();
+
 		const parsed = parsePDFPageBlock(source);
 
 		if (!parsed) {
@@ -67,13 +75,23 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			return;
 		}
 
-		// Always use custom renderer for code blocks
-		const renderer = new PDFPageRenderer(el, file, page, this.app, width);
+		// Use custom renderer with cache
+		const renderer = new PDFPageRenderer(
+			el,
+			file,
+			page,
+			this.app,
+			this.pdfCache,
+			width,
+		);
 		ctx.addChild(renderer);
 	}
 
 	onunload() {
-		// Cleanup when plugin is disabled
+		// Clear PDF cache on plugin unload
+		if (this.pdfCache) {
+			this.pdfCache.clear();
+		}
 	}
 
 	async loadSettings() {
