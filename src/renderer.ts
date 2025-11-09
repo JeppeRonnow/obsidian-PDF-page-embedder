@@ -1,5 +1,6 @@
 import { MarkdownRenderChild, TFile } from "obsidian";
 import { PDFCache } from "./pdf-cache";
+import * as pdfjsLib from "pdfjs-dist";
 
 export class PDFPageRenderer extends MarkdownRenderChild {
 	file: TFile;
@@ -28,7 +29,32 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	async onload() {
 		try {
-			const pdfjsLib = await this.loadPDFJS();
+			// Set up PDF.js worker (load from plugin directory)
+			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+				try {
+					const adapter = (this.app.vault as any).adapter;
+					const plugin = (this.app as any).plugins.plugins['pdf-page-embedder'];
+
+					if (plugin && plugin.manifest && plugin.manifest.dir) {
+						// Use the manifest directory path
+						const workerPath = `${plugin.manifest.dir}/pdf.worker.min.js`;
+						console.log('[PDF.js] Attempting to load worker from:', workerPath);
+
+						const workerContent = await adapter.read(workerPath);
+						const blob = new Blob([workerContent], { type: 'application/javascript' });
+						pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+						console.log('[PDF.js] Worker loaded from local file');
+					} else {
+						throw new Error('Could not determine plugin directory');
+					}
+				} catch (error) {
+					console.error('[PDF.js] Failed to load local worker:', error);
+					// Fallback: use CDN as last resort
+					pdfjsLib.GlobalWorkerOptions.workerSrc =
+						"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+					console.log('[PDF.js] Using CDN worker as fallback');
+				}
+			}
 
 			// Use cache to get PDF document
 			const pdf = await this.pdfCache.get(this.file.path, async () => {
@@ -164,27 +190,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.containerEl.empty();
 	}
 
-	async loadPDFJS(): Promise<any> {
-		// Check if PDF.js is already loaded
-		if ((window as any).pdfjsLib) {
-			return (window as any).pdfjsLib;
-		}
-
-		// Load PDF.js from CDN
-		return new Promise((resolve, reject) => {
-			const script = document.createElement("script");
-			script.src =
-				"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-			script.onload = () => {
-				const pdfjsLib = (window as any).pdfjsLib;
-				pdfjsLib.GlobalWorkerOptions.workerSrc =
-					"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-				resolve(pdfjsLib);
-			};
-			script.onerror = reject;
-			document.head.appendChild(script);
-		});
-	}
 
 	renderError(message: string) {
 		this.containerEl.empty();
