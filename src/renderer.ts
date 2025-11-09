@@ -33,26 +33,37 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
 				try {
 					const adapter = (this.app.vault as any).adapter;
-					const plugin = (this.app as any).plugins.plugins['pdf-page-embedder'];
+					const plugin = (this.app as any).plugins.plugins[
+						"pdf-page-embedder"
+					];
 
 					if (plugin && plugin.manifest && plugin.manifest.dir) {
 						// Use the manifest directory path
 						const workerPath = `${plugin.manifest.dir}/pdf.worker.min.js`;
-						console.log('[PDF.js] Attempting to load worker from:', workerPath);
+						console.log(
+							"[PDF.js] Attempting to load worker from:",
+							workerPath,
+						);
 
 						const workerContent = await adapter.read(workerPath);
-						const blob = new Blob([workerContent], { type: 'application/javascript' });
-						pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
-						console.log('[PDF.js] Worker loaded from local file');
+						const blob = new Blob([workerContent], {
+							type: "application/javascript",
+						});
+						pdfjsLib.GlobalWorkerOptions.workerSrc =
+							URL.createObjectURL(blob);
+						console.log("[PDF.js] Worker loaded from local file");
 					} else {
-						throw new Error('Could not determine plugin directory');
+						throw new Error("Could not determine plugin directory");
 					}
 				} catch (error) {
-					console.error('[PDF.js] Failed to load local worker:', error);
+					console.error(
+						"[PDF.js] Failed to load local worker:",
+						error,
+					);
 					// Fallback: use CDN as last resort
 					pdfjsLib.GlobalWorkerOptions.workerSrc =
 						"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-					console.log('[PDF.js] Using CDN worker as fallback');
+					console.log("[PDF.js] Using CDN worker as fallback");
 				}
 			}
 
@@ -76,7 +87,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			await this.renderPDFPage(pdf, this.pageNumber);
 		} catch (error) {
 			console.error("Error rendering PDF:", this.file.path, error);
-			const errorMessage = error instanceof Error ? error.message : "Unknown error";
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
 			this.renderError(`Failed to load PDF page: ${errorMessage}`);
 		}
 	}
@@ -98,7 +110,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Apply custom width to wrapper if specified
 			if (this.width) {
 				canvasWrapper.style.width = this.width;
-				console.log(`[PDF Width Debug] Page ${this.pageNumber} - Applied custom width to wrapper: ${this.width}`);
 			} else {
 				// Default: fill container width
 				canvasWrapper.style.width = "100%";
@@ -122,8 +133,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Render at ~2x the typical reading width for crisp display
 			const renderScale = 2.0;
 			const viewport = page.getViewport({ scale: renderScale });
-
-			console.log(`[PDF Width Debug] Page ${this.pageNumber} - Rendering at scale ${renderScale}, native PDF width: ${baseViewport.width}px, render width: ${viewport.width}px`);
 
 			const context = this.canvas.getContext("2d");
 			if (!context) {
@@ -154,9 +163,17 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Clean up the page object immediately after rendering
 			page.cleanup();
 		} catch (error) {
-			console.error("Error rendering PDF page:", this.file.path, pageNumber, error);
-			const errorMessage = error instanceof Error ? error.message : "Unknown error";
-			this.renderError(`Failed to render page ${pageNumber}: ${errorMessage}`);
+			console.error(
+				"Error rendering PDF page:",
+				this.file.path,
+				pageNumber,
+				error,
+			);
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			this.renderError(
+				`Failed to render page ${pageNumber}: ${errorMessage}`,
+			);
 		}
 	}
 
@@ -190,7 +207,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.containerEl.empty();
 	}
 
-
 	renderError(message: string) {
 		this.containerEl.empty();
 		this.containerEl.addClass("pdf-page-embed-error");
@@ -202,17 +218,17 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	private parseWidth(width: string, container: HTMLElement): number {
 		// Handle percentage widths
-		if (width.endsWith('%')) {
+		if (width.endsWith("%")) {
 			const percentage = parseFloat(width);
 			const containerWidth = container.parentElement?.clientWidth || 600;
 			return (containerWidth * percentage) / 100;
 		}
-		
+
 		// Handle pixel values
-		if (width.endsWith('px')) {
+		if (width.endsWith("px")) {
 			return parseFloat(width);
 		}
-		
+
 		// For any other value, try to parse as number (assume pixels)
 		const parsed = parseFloat(width);
 		return isNaN(parsed) ? 600 : parsed;
@@ -223,25 +239,17 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		let current: HTMLElement | null = container;
 		let candidateWidth = 0;
 
-		console.log(`[PDF Width Debug] Starting DOM traversal from:`, container.className);
-
 		// Look up the tree for content containers
 		while (current) {
 			const width = current.clientWidth;
-			console.log(`[PDF Width Debug] Checking element:`, {
-				className: current.className,
-				clientWidth: width,
-				tagName: current.tagName,
-			});
 
 			// Look for Obsidian's markdown preview containers
 			if (
-				current.classList.contains('markdown-preview-view') ||
-				current.classList.contains('markdown-preview-section') ||
-				current.classList.contains('cm-content') ||
-				current.classList.contains('cm-contentContainer')
+				current.classList.contains("markdown-preview-view") ||
+				current.classList.contains("markdown-preview-section") ||
+				current.classList.contains("cm-content") ||
+				current.classList.contains("cm-contentContainer")
 			) {
-				console.log(`[PDF Width Debug] Found markdown container with width: ${width}px`);
 				if (width > candidateWidth) {
 					candidateWidth = width;
 				}
@@ -257,12 +265,10 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 		// If we found a reasonable width, use it
 		if (candidateWidth > 200) {
-			console.log(`[PDF Width Debug] Using candidate width: ${candidateWidth}px`);
 			return candidateWidth;
 		}
 
 		// Fallback
-		console.log(`[PDF Width Debug] Using fallback width: 600px`);
 		return 600;
 	}
 }
