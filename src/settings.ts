@@ -5,12 +5,14 @@ export interface PDFPageEmbedderSettings {
 	skipFirstPages: number;
 	useNativeViewer: boolean;
 	showPageNumber: boolean;
+	openAtPage: boolean;
 }
 
 export const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
 	skipFirstPages: 0,
 	useNativeViewer: false,
 	showPageNumber: false,
+	openAtPage: true,
 };
 
 export class PDFPageEmbedderSettingTab extends PluginSettingTab {
@@ -71,6 +73,21 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.showPageNumber)
 					.onChange(async (value) => {
 						this.plugin.settings.showPageNumber = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// open pdf on that page when clicking the embed
+		new Setting(containerEl)
+			.setName("Open PDF at page when clicking embed")
+			.setDesc(
+				"When clicking on the embedded PDF page, open the PDF viewer at that specific page.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.openAtPage)
+					.onChange(async (value) => {
+						this.plugin.settings.openAtPage = value;
 						await this.plugin.saveSettings();
 					}),
 			);
