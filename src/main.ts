@@ -51,7 +51,7 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			return;
 		}
 
-		const { filename, page, width } = parsed;
+		const { filename, page, width, rotation, alignment } = parsed;
 
 		// Get the PDF file
 		const file = this.app.metadataCache.getFirstLinkpathDest(
@@ -84,6 +84,8 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			this.pdfCache,
 			this.settings,
 			width,
+			rotation,
+			alignment,
 		);
 		ctx.addChild(renderer);
 	}

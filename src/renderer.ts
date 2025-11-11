@@ -8,6 +8,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	pageNumber: number;
 	app: any;
 	width: string | null;
+	rotation: number;
+	alignment: string;
 	pdfCache: PDFCache;
 	settings: PDFPageEmbedderSettings;
 	renderTask: any = null;
@@ -21,6 +23,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		pdfCache: PDFCache,
 		settings: PDFPageEmbedderSettings,
 		width: string | null = null,
+		rotation = 0,
+		alignment = "left",
 	) {
 		super(containerEl);
 		this.file = file;
@@ -29,6 +33,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.pdfCache = pdfCache;
 		this.settings = settings;
 		this.width = width;
+		this.rotation = rotation;
+		this.alignment = alignment;
 	}
 
 	async onload() {
@@ -103,6 +109,15 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			container.empty();
 			container.addClass("pdf-page-embed-container");
 
+			// Apply alignment to container
+			if (this.alignment === "center") {
+				container.style.textAlign = "center";
+			} else if (this.alignment === "right") {
+				container.style.textAlign = "right";
+			} else {
+				container.style.textAlign = "left";
+			}
+
 			// Get the specific page
 			const page = await pdf.getPage(pageNumber);
 
@@ -118,7 +133,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				// Default: fill container width
 				canvasWrapper.style.width = "100%";
 			}
-			canvasWrapper.style.display = "block";
+			canvasWrapper.style.display = "inline-block";
 
 			// Add click handler to open PDF in native viewer (if enabled)
 			if (this.settings.openAtPage) {
@@ -157,7 +172,10 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Use a scale that gives good quality at typical screen sizes
 			// Render at ~2x the typical reading width for crisp display
 			const renderScale = 2.0;
-			const viewport = page.getViewport({ scale: renderScale });
+			const viewport = page.getViewport({
+				scale: renderScale,
+				rotation: this.rotation,
+			});
 
 			const context = this.canvas.getContext("2d");
 			if (!context) {
@@ -311,26 +329,60 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	}
 }
 
-export function parsePDFPageBlock(
-	source: string,
-): { filename: string; page: number; width: string | null } | null {
+export function parsePDFPageBlock(source: string): {
+	filename: string;
+	page: number;
+	width: string | null;
+	rotation: number;
+	alignment: string;
+} | null {
 	source = source.trim();
 
-	// Format 1: Simple format - "filename.pdf#5" or "filename.pdf#5|width:100%"
-	const simpleMatch = source.match(/^(.+\.pdf)#(\d+)(?:\|width:(.+))?$/i);
+	// Format 1: Simple format - "filename.pdf#5" or "filename.pdf#5|width:100%|rotate:90"
+	const simpleMatch = source.match(/^(.+\.pdf)#(\d+)(.*)$/i);
 	if (simpleMatch) {
-		return {
-			filename: simpleMatch[1].trim(),
-			page: parseInt(simpleMatch[2]),
-			width: simpleMatch[3] ? simpleMatch[3].trim() : null,
-		};
+		const filename = simpleMatch[1].trim();
+		const page = parseInt(simpleMatch[2]);
+		const params = simpleMatch[3];
+
+		let width: string | null = null;
+		let rotation = 0;
+		let alignment = "left";
+
+		if (params) {
+			const widthMatch = params.match(/\|width:([^|]+)/i);
+			if (widthMatch) {
+				width = widthMatch[1].trim();
+			}
+
+			const rotateMatch = params.match(/\|rotate:(\d+)/i);
+			if (rotateMatch) {
+				const rot = parseInt(rotateMatch[1]);
+				// Normalize to 0, 90, 180, 270
+				rotation = ((rot % 360) + 360) % 360;
+				if (![0, 90, 180, 270].includes(rotation)) {
+					rotation = 0;
+				}
+			}
+
+			// Check for alignment parameters
+			if (params.match(/\|center/i)) {
+				alignment = "center";
+			} else if (params.match(/\|right/i)) {
+				alignment = "right";
+			}
+		}
+
+		return { filename, page, width, rotation, alignment };
 	}
 
-	// Format 2: Multi-line format with "file:", "page:", and optional "width:"
+	// Format 2: Multi-line format with "file:", "page:", and optional "width:", "rotate:"
 	const lines = source.split("\n");
 	let filename: string | null = null;
 	let page: number | null = null;
 	let width: string | null = null;
+	let rotation = 0;
+	let alignment = "left";
 
 	for (const line of lines) {
 		const trimmed = line.trim();
@@ -349,10 +401,25 @@ export function parsePDFPageBlock(
 		if (widthMatch) {
 			width = widthMatch[1].trim();
 		}
+
+		const rotateMatch = trimmed.match(/^rotate:\s*(\d+)$/i);
+		if (rotateMatch) {
+			const rot = parseInt(rotateMatch[1]);
+			// Normalize to 0, 90, 180, 270
+			rotation = ((rot % 360) + 360) % 360;
+			if (![0, 90, 180, 270].includes(rotation)) {
+				rotation = 0;
+			}
+		}
+
+		const alignMatch = trimmed.match(/^align:\s*(left|center|right)$/i);
+		if (alignMatch) {
+			alignment = alignMatch[1].toLowerCase();
+		}
 	}
 
 	if (filename && page) {
-		return { filename, page, width };
+		return { filename, page, width, rotation, alignment };
 	}
 
 	return null;
