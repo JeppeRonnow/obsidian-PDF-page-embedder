@@ -79,9 +79,9 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 
 		// open pdf on that page when clicking the embed
 		new Setting(containerEl)
-			.setName("Open PDF at page when clicking embed")
+			.setName("Open PDF at page when double clicking embed")
 			.setDesc(
-				"When clicking on the embedded PDF page, open the PDF viewer at that specific page.",
+				"When double clicking on the embedded PDF page, open the PDF viewer at that specific page.",
 			)
 			.addToggle((toggle) =>
 				toggle

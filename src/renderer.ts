@@ -124,7 +124,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			if (this.settings.openAtPage) {
 				canvasWrapper.style.cursor = "pointer";
 				canvasWrapper.style.transition = "opacity 0.2s, transform 0.2s";
-				canvasWrapper.addEventListener("click", async () => {
+				canvasWrapper.addEventListener("dblclick", async () => {
 					await this.app.workspace.openLinkText(
 						`${this.file.path}#page=${this.pageNumber}`,
 						"",
