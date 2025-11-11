@@ -82,6 +82,7 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			page,
 			this.app,
 			this.pdfCache,
+			this.settings,
 			width,
 		);
 		ctx.addChild(renderer);

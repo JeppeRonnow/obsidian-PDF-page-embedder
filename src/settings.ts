@@ -4,11 +4,13 @@ import PDFPageEmbedderPlugin from "./main";
 export interface PDFPageEmbedderSettings {
 	skipFirstPages: number;
 	useNativeViewer: boolean;
+	showPageNumber: boolean;
 }
 
 export const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
 	skipFirstPages: 0,
 	useNativeViewer: false,
+	showPageNumber: false,
 };
 
 export class PDFPageEmbedderSettingTab extends PluginSettingTab {
@@ -54,6 +56,21 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.useNativeViewer)
 					.onChange(async (value) => {
 						this.plugin.settings.useNativeViewer = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// Show page number under page embeds setting
+		new Setting(containerEl)
+			.setName("Show page number under page embeds")
+			.setDesc(
+				"Display the page number below each embedded PDF page for easier reference.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showPageNumber)
+					.onChange(async (value) => {
+						this.plugin.settings.showPageNumber = value;
 						await this.plugin.saveSettings();
 					}),
 			);

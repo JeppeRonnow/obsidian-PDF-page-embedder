@@ -1,5 +1,6 @@
 import { MarkdownRenderChild, TFile } from "obsidian";
 import { PDFCache } from "./pdf-cache";
+import { PDFPageEmbedderSettings } from "./settings";
 import * as pdfjsLib from "pdfjs-dist";
 
 export class PDFPageRenderer extends MarkdownRenderChild {
@@ -8,6 +9,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	app: any;
 	width: string | null;
 	pdfCache: PDFCache;
+	settings: PDFPageEmbedderSettings;
 	renderTask: any = null;
 	canvas: HTMLCanvasElement | null = null;
 
@@ -17,6 +19,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		pageNumber: number,
 		app: any,
 		pdfCache: PDFCache,
+		settings: PDFPageEmbedderSettings,
 		width: string | null = null,
 	) {
 		super(containerEl);
@@ -24,6 +27,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.pageNumber = pageNumber;
 		this.app = app;
 		this.pdfCache = pdfCache;
+		this.settings = settings;
 		this.width = width;
 	}
 
@@ -127,8 +131,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			// Get viewport - render at a consistent high resolution
 			// CSS will scale it down to fit the container
-			const baseViewport = page.getViewport({ scale: 1 });
-
 			// Use a scale that gives good quality at typical screen sizes
 			// Render at ~2x the typical reading width for crisp display
 			const renderScale = 2.0;
@@ -162,6 +164,19 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			// Clean up the page object immediately after rendering
 			page.cleanup();
+
+			// Add page number display if enabled
+			if (this.settings.showPageNumber) {
+				const pageNumberEl = container.createEl("div", {
+					cls: "pdf-page-number",
+					text: `Page ${pageNumber}`,
+				});
+				pageNumberEl.style.textAlign = "center";
+				pageNumberEl.style.marginTop = "1px";
+				pageNumberEl.style.marginBottom = "3px";
+				pageNumberEl.style.fontSize = "0.9em";
+				pageNumberEl.style.color = "var(--text-muted)";
+			}
 		} catch (error) {
 			console.error(
 				"Error rendering PDF page:",
