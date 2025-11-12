@@ -49,11 +49,6 @@ The plugin includes a custom PDF renderer that provides:
 
 ## TODO
 ### Planned Features
-- [x] **Skip first N pages**
-- [x] **Insert page range**
-- [x] **Insert page range (from-to)**
-- [x] **Custom PDF veiwer**
-
 - [ ] **Custom page format templates**
 - [ ] **Every Nth page** *(useful for double-sided scans)*
 - [ ] **Preview mode**
