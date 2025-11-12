@@ -9,6 +9,11 @@ Quickly embed all pages of a PDF file as individual page references in your Obsi
 - 🚀 Insert all PDF pages with a single command
 - ⚡ Custom PDF renderer - fast, clean, single-page view
 - 🎯 Multiple insertion modes (all pages, page ranges, single pages)
+- 🔄 Page rotation support (90°, 180°, 270°)
+- ↔️ Alignment options (left, center, right)
+- 📝 Text selection and copying from embedded pages
+- 🔢 Optional page number display
+- 👆 Double-click to open PDF at specific page
 - ⚙️ Configurable settings for default behavior
 
 ## Usage
@@ -36,6 +41,36 @@ your-pdf.pdf#1
 ```
 ```pdf-page
 your-pdf.pdf#2
+```
+````
+
+### Advanced Syntax
+
+Customize width, rotation, and alignment for individual pages:
+````markdown
+```pdf-page
+your-pdf.pdf#5|width:100%|center
+```
+```pdf-page
+your-pdf.pdf#10|width:600px|rotate:90|right
+```
+````
+
+**Supported parameters:**
+- `width`: Custom width (e.g., `100%`, `600px`, `80%`)
+- `rotate`: Page rotation in degrees (`90`, `180`, or `270`)
+- `center`: Center-align the embed
+- `right`: Right-align the embed
+- (default is left-aligned)
+
+**Multi-line format:**
+````markdown
+```pdf-page
+file: your-pdf.pdf
+page: 5
+width: 100%
+rotate: 90
+align: center
 ```
 ````
 ## Custom PDF Renderer
