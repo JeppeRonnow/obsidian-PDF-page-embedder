@@ -8,10 +8,13 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	pageNumber: number;
 	app: any;
 	width: string | null;
+	rotation: number;
+	alignment: string;
 	pdfCache: PDFCache;
 	settings: PDFPageEmbedderSettings;
 	renderTask: any = null;
 	canvas: HTMLCanvasElement | null = null;
+	settingsChangeHandler: (() => void) | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -21,6 +24,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		pdfCache: PDFCache,
 		settings: PDFPageEmbedderSettings,
 		width: string | null = null,
+		rotation = 0,
+		alignment = "left",
 	) {
 		super(containerEl);
 		this.file = file;
@@ -29,9 +34,20 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.pdfCache = pdfCache;
 		this.settings = settings;
 		this.width = width;
+		this.rotation = rotation;
+		this.alignment = alignment;
 	}
 
 	async onload() {
+		// Register settings change listener
+		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
+		if (plugin && plugin.events) {
+			this.settingsChangeHandler = () => {
+				this.reloadPage();
+			};
+			plugin.events.on("settings-changed", this.settingsChangeHandler);
+		}
+
 		try {
 			// Set up PDF.js worker (load from plugin directory)
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -103,6 +119,15 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			container.empty();
 			container.addClass("pdf-page-embed-container");
 
+			// Apply alignment to container
+			if (this.alignment === "center") {
+				container.style.textAlign = "center";
+			} else if (this.alignment === "right") {
+				container.style.textAlign = "right";
+			} else {
+				container.style.textAlign = "left";
+			}
+
 			// Get the specific page
 			const page = await pdf.getPage(pageNumber);
 
@@ -118,7 +143,36 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				// Default: fill container width
 				canvasWrapper.style.width = "100%";
 			}
-			canvasWrapper.style.display = "block";
+			canvasWrapper.style.display = "inline-block";
+
+			// Add click handler to open PDF in native viewer (if enabled)
+			if (this.settings.openAtPage) {
+				canvasWrapper.style.cursor = "pointer";
+				canvasWrapper.style.transition = "opacity 0.2s, transform 0.2s";
+				canvasWrapper.addEventListener("dblclick", async () => {
+					await this.app.workspace.openLinkText(
+						`${this.file.path}#page=${this.pageNumber}`,
+						"",
+						false,
+					);
+				});
+
+				// Add hover effect
+				canvasWrapper.addEventListener("mouseenter", () => {
+					canvasWrapper.style.opacity = "0.85";
+					canvasWrapper.style.transform = "scale(0.99)";
+				});
+				canvasWrapper.addEventListener("mouseleave", () => {
+					canvasWrapper.style.opacity = "1";
+					canvasWrapper.style.transform = "scale(1)";
+				});
+			}
+
+			// Add context menu for copying page as image
+			canvasWrapper.addEventListener("contextmenu", (event) => {
+				event.preventDefault();
+				this.showContextMenu(event, canvasWrapper);
+			});
 
 			// Create canvas for rendering
 			this.canvas = canvasWrapper.createEl("canvas");
@@ -131,10 +185,12 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			// Get viewport - render at a consistent high resolution
 			// CSS will scale it down to fit the container
-			// Use a scale that gives good quality at typical screen sizes
-			// Render at ~2x the typical reading width for crisp display
-			const renderScale = 2.0;
-			const viewport = page.getViewport({ scale: renderScale });
+			// Use a scale based on quality setting: Low (1.0x), Medium (2.0x), High (3.0x)
+			const renderScale = this.getRenderScale();
+			const viewport = page.getViewport({
+				scale: renderScale,
+				rotation: this.rotation,
+			});
 
 			const context = this.canvas.getContext("2d");
 			if (!context) {
@@ -193,6 +249,13 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	}
 
 	onunload() {
+		// Unregister settings change listener
+		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
+		if (plugin && plugin.events && this.settingsChangeHandler) {
+			plugin.events.off("settings-changed", this.settingsChangeHandler);
+			this.settingsChangeHandler = null;
+		}
+
 		// Cancel any pending render tasks
 		if (this.renderTask) {
 			try {
@@ -222,6 +285,30 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.containerEl.empty();
 	}
 
+	async reloadPage() {
+		try {
+			// Get fresh settings reference from plugin
+			const plugin = (this.app as any).plugins.plugins[
+				"pdf-page-embedder"
+			];
+			if (plugin && plugin.settings) {
+				this.settings = plugin.settings;
+			}
+
+			// Use cache to get PDF document (should be cached already)
+			const pdf = await this.pdfCache.get(this.file.path, async () => {
+				const arrayBuffer = await this.app.vault.readBinary(this.file);
+				const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+				return await loadingTask.promise;
+			});
+
+			// Re-render the page with updated settings
+			await this.renderPDFPage(pdf, this.pageNumber);
+		} catch (error) {
+			console.error("Error reloading PDF page:", error);
+		}
+	}
+
 	renderError(message: string) {
 		this.containerEl.empty();
 		this.containerEl.addClass("pdf-page-embed-error");
@@ -229,6 +316,56 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			cls: "pdf-error-message",
 			text: message,
 		});
+	}
+
+	showContextMenu(event: MouseEvent, canvasWrapper: HTMLElement) {
+		// Import Menu from obsidian
+		const { Menu } = require("obsidian");
+		const menu = new Menu();
+
+		menu.addItem((item: any) => {
+			item.setTitle("Copy page as image")
+				.setIcon("image")
+				.onClick(async () => {
+					await this.copyPageAsImage();
+				});
+		});
+
+		menu.showAtMouseEvent(event);
+	}
+
+	async copyPageAsImage() {
+		if (!this.canvas) {
+			console.error("Canvas not available for copying");
+			return;
+		}
+
+		try {
+			// Convert canvas to blob
+			const blob = await new Promise<Blob | null>((resolve) => {
+				this.canvas!.toBlob((blob) => {
+					resolve(blob);
+				}, "image/png");
+			});
+
+			if (!blob) {
+				throw new Error("Failed to create image blob");
+			}
+
+			// Copy to clipboard using the Clipboard API
+			const clipboardItem = new ClipboardItem({ "image/png": blob });
+			await navigator.clipboard.write([clipboardItem]);
+
+			// Show success notice
+			const { Notice } = require("obsidian");
+			new Notice(`Page ${this.pageNumber} copied as image to clipboard`);
+		} catch (error) {
+			console.error("Error copying page as image:", error);
+			const { Notice } = require("obsidian");
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			new Notice(`Failed to copy image: ${errorMessage}`);
+		}
 	}
 
 	private parseWidth(width: string, container: HTMLElement): number {
@@ -286,28 +423,74 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		// Fallback
 		return 600;
 	}
+
+	private getRenderScale(): number {
+		switch (this.settings.renderQuality) {
+			case "low":
+				return 1.0;
+			case "high":
+				return 3.0;
+			case "medium":
+			default:
+				return 2.0;
+		}
+	}
 }
 
-export function parsePDFPageBlock(
-	source: string,
-): { filename: string; page: number; width: string | null } | null {
+export function parsePDFPageBlock(source: string): {
+	filename: string;
+	page: number;
+	width: string | null;
+	rotation: number;
+	alignment: string;
+} | null {
 	source = source.trim();
 
-	// Format 1: Simple format - "filename.pdf#5" or "filename.pdf#5|width:100%"
-	const simpleMatch = source.match(/^(.+\.pdf)#(\d+)(?:\|width:(.+))?$/i);
+	// Format 1: Simple format - "filename.pdf#5" or "filename.pdf#5|width:100%|rotate:90"
+	const simpleMatch = source.match(/^(.+\.pdf)#(\d+)(.*)$/i);
 	if (simpleMatch) {
-		return {
-			filename: simpleMatch[1].trim(),
-			page: parseInt(simpleMatch[2]),
-			width: simpleMatch[3] ? simpleMatch[3].trim() : null,
-		};
+		const filename = simpleMatch[1].trim();
+		const page = parseInt(simpleMatch[2]);
+		const params = simpleMatch[3];
+
+		let width: string | null = null;
+		let rotation = 0;
+		let alignment = "left";
+
+		if (params) {
+			const widthMatch = params.match(/\|width:([^|]+)/i);
+			if (widthMatch) {
+				width = widthMatch[1].trim();
+			}
+
+			const rotateMatch = params.match(/\|rotate:(\d+)/i);
+			if (rotateMatch) {
+				const rot = parseInt(rotateMatch[1]);
+				// Normalize to 0, 90, 180, 270
+				rotation = ((rot % 360) + 360) % 360;
+				if (![0, 90, 180, 270].includes(rotation)) {
+					rotation = 0;
+				}
+			}
+
+			// Check for alignment parameters
+			if (params.match(/\|center/i)) {
+				alignment = "center";
+			} else if (params.match(/\|right/i)) {
+				alignment = "right";
+			}
+		}
+
+		return { filename, page, width, rotation, alignment };
 	}
 
-	// Format 2: Multi-line format with "file:", "page:", and optional "width:"
+	// Format 2: Multi-line format with "file:", "page:", and optional "width:", "rotate:"
 	const lines = source.split("\n");
 	let filename: string | null = null;
 	let page: number | null = null;
 	let width: string | null = null;
+	let rotation = 0;
+	let alignment = "left";
 
 	for (const line of lines) {
 		const trimmed = line.trim();
@@ -326,10 +509,25 @@ export function parsePDFPageBlock(
 		if (widthMatch) {
 			width = widthMatch[1].trim();
 		}
+
+		const rotateMatch = trimmed.match(/^rotate:\s*(\d+)$/i);
+		if (rotateMatch) {
+			const rot = parseInt(rotateMatch[1]);
+			// Normalize to 0, 90, 180, 270
+			rotation = ((rot % 360) + 360) % 360;
+			if (![0, 90, 180, 270].includes(rotation)) {
+				rotation = 0;
+			}
+		}
+
+		const alignMatch = trimmed.match(/^align:\s*(left|center|right)$/i);
+		if (alignMatch) {
+			alignment = alignMatch[1].toLowerCase();
+		}
 	}
 
 	if (filename && page) {
-		return { filename, page, width };
+		return { filename, page, width, rotation, alignment };
 	}
 
 	return null;
