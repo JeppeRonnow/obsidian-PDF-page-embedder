@@ -158,6 +158,12 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				});
 			}
 
+			// Add context menu for copying page as image
+			canvasWrapper.addEventListener("contextmenu", (event) => {
+				event.preventDefault();
+				this.showContextMenu(event, canvasWrapper);
+			});
+
 			// Create canvas for rendering
 			this.canvas = canvasWrapper.createEl("canvas");
 			this.canvas.addClass("pdf-page-canvas");
@@ -270,6 +276,56 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			cls: "pdf-error-message",
 			text: message,
 		});
+	}
+
+	showContextMenu(event: MouseEvent, canvasWrapper: HTMLElement) {
+		// Import Menu from obsidian
+		const { Menu } = require("obsidian");
+		const menu = new Menu();
+
+		menu.addItem((item: any) => {
+			item.setTitle("Copy page as image")
+				.setIcon("image")
+				.onClick(async () => {
+					await this.copyPageAsImage();
+				});
+		});
+
+		menu.showAtMouseEvent(event);
+	}
+
+	async copyPageAsImage() {
+		if (!this.canvas) {
+			console.error("Canvas not available for copying");
+			return;
+		}
+
+		try {
+			// Convert canvas to blob
+			const blob = await new Promise<Blob | null>((resolve) => {
+				this.canvas!.toBlob((blob) => {
+					resolve(blob);
+				}, "image/png");
+			});
+
+			if (!blob) {
+				throw new Error("Failed to create image blob");
+			}
+
+			// Copy to clipboard using the Clipboard API
+			const clipboardItem = new ClipboardItem({ "image/png": blob });
+			await navigator.clipboard.write([clipboardItem]);
+
+			// Show success notice
+			const { Notice } = require("obsidian");
+			new Notice(`Page ${this.pageNumber} copied as image to clipboard`);
+		} catch (error) {
+			console.error("Error copying page as image:", error);
+			const { Notice } = require("obsidian");
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			new Notice(`Failed to copy image: ${errorMessage}`);
+		}
 	}
 
 	private parseWidth(width: string, container: HTMLElement): number {
