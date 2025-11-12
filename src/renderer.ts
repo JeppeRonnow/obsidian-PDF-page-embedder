@@ -14,6 +14,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	settings: PDFPageEmbedderSettings;
 	renderTask: any = null;
 	canvas: HTMLCanvasElement | null = null;
+	settingsChangeHandler: (() => void) | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -38,6 +39,15 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	}
 
 	async onload() {
+		// Register settings change listener
+		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
+		if (plugin && plugin.events) {
+			this.settingsChangeHandler = () => {
+				this.reloadPage();
+			};
+			plugin.events.on("settings-changed", this.settingsChangeHandler);
+		}
+
 		try {
 			// Set up PDF.js worker (load from plugin directory)
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -175,9 +185,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			// Get viewport - render at a consistent high resolution
 			// CSS will scale it down to fit the container
-			// Use a scale that gives good quality at typical screen sizes
-			// Render at ~2x the typical reading width for crisp display
-			const renderScale = 2.0;
+			// Use a scale based on quality setting: Low (1.0x), Medium (2.0x), High (3.0x)
+			const renderScale = this.getRenderScale();
 			const viewport = page.getViewport({
 				scale: renderScale,
 				rotation: this.rotation,
@@ -240,6 +249,13 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	}
 
 	onunload() {
+		// Unregister settings change listener
+		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
+		if (plugin && plugin.events && this.settingsChangeHandler) {
+			plugin.events.off("settings-changed", this.settingsChangeHandler);
+			this.settingsChangeHandler = null;
+		}
+
 		// Cancel any pending render tasks
 		if (this.renderTask) {
 			try {
@@ -267,6 +283,30 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 		// Clear the container
 		this.containerEl.empty();
+	}
+
+	async reloadPage() {
+		try {
+			// Get fresh settings reference from plugin
+			const plugin = (this.app as any).plugins.plugins[
+				"pdf-page-embedder"
+			];
+			if (plugin && plugin.settings) {
+				this.settings = plugin.settings;
+			}
+
+			// Use cache to get PDF document (should be cached already)
+			const pdf = await this.pdfCache.get(this.file.path, async () => {
+				const arrayBuffer = await this.app.vault.readBinary(this.file);
+				const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+				return await loadingTask.promise;
+			});
+
+			// Re-render the page with updated settings
+			await this.renderPDFPage(pdf, this.pageNumber);
+		} catch (error) {
+			console.error("Error reloading PDF page:", error);
+		}
 	}
 
 	renderError(message: string) {
@@ -382,6 +422,18 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 		// Fallback
 		return 600;
+	}
+
+	private getRenderScale(): number {
+		switch (this.settings.renderQuality) {
+			case "low":
+				return 1.0;
+			case "high":
+				return 3.0;
+			case "medium":
+			default:
+				return 2.0;
+		}
 	}
 }
 
