@@ -5,12 +5,16 @@ export interface PDFPageEmbedderSettings {
 	skipFirstPages: number;
 	useNativeViewer: boolean;
 	showPageNumber: boolean;
+	openAtPage: boolean;
+	renderQuality: "low" | "medium" | "high";
 }
 
 export const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
 	skipFirstPages: 0,
 	useNativeViewer: false,
 	showPageNumber: false,
+	openAtPage: true,
+	renderQuality: "medium",
 };
 
 export class PDFPageEmbedderSettingTab extends PluginSettingTab {
@@ -71,6 +75,39 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.showPageNumber)
 					.onChange(async (value) => {
 						this.plugin.settings.showPageNumber = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// open pdf on that page when clicking the embed
+		new Setting(containerEl)
+			.setName("Open PDF at page when double clicking embed")
+			.setDesc(
+				"When double clicking on the embedded PDF page, open the PDF viewer at that specific page.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.openAtPage)
+					.onChange(async (value) => {
+						this.plugin.settings.openAtPage = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// Render quality setting
+		new Setting(containerEl)
+			.setName("Render quality")
+			.setDesc(
+				"Quality of PDF page rendering. Low (1.0x): faster, smaller memory. Medium (2.0x): balanced. High (3.0x): crisp on high-DPI displays, uses more memory.",
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("low", "Low (1.0x)")
+					.addOption("medium", "Medium (2.0x)")
+					.addOption("high", "High (3.0x)")
+					.setValue(this.plugin.settings.renderQuality)
+					.onChange(async (value: "low" | "medium" | "high") => {
+						this.plugin.settings.renderQuality = value;
 						await this.plugin.saveSettings();
 					}),
 			);
