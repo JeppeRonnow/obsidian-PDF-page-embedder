@@ -6,6 +6,7 @@ export interface PDFPageEmbedderSettings {
 	useNativeViewer: boolean;
 	showPageNumber: boolean;
 	openAtPage: boolean;
+	enableHoverAnimation: boolean;
 	renderQuality: "low" | "medium" | "high";
 }
 
@@ -14,6 +15,7 @@ export const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
 	useNativeViewer: false,
 	showPageNumber: false,
 	openAtPage: true,
+	enableHoverAnimation: false,
 	renderQuality: "medium",
 };
 
@@ -90,6 +92,21 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.openAtPage)
 					.onChange(async (value) => {
 						this.plugin.settings.openAtPage = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		// Enable hover animation setting
+		new Setting(containerEl)
+			.setName("Enable hover animation")
+			.setDesc(
+				"Show a subtle animation effect when hovering over embedded PDF pages (when double-click to open is enabled).",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableHoverAnimation)
+					.onChange(async (value) => {
+						this.plugin.settings.enableHoverAnimation = value;
 						await this.plugin.saveSettings();
 					}),
 			);

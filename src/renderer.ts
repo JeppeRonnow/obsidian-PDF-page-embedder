@@ -148,23 +148,29 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Add click handler to open PDF in native viewer (if enabled)
 			if (this.settings.openAtPage) {
 				canvasWrapper.style.cursor = "pointer";
-				canvasWrapper.style.transition = "opacity 0.2s, transform 0.2s";
+
+				// Only add transition and hover effects if animations are enabled
+				if (this.settings.enableHoverAnimation) {
+					canvasWrapper.style.transition =
+						"opacity 0.2s, transform 0.2s";
+
+					// Add hover effect
+					canvasWrapper.addEventListener("mouseenter", () => {
+						canvasWrapper.style.opacity = "0.85";
+						canvasWrapper.style.transform = "scale(0.99)";
+					});
+					canvasWrapper.addEventListener("mouseleave", () => {
+						canvasWrapper.style.opacity = "1";
+						canvasWrapper.style.transform = "scale(1)";
+					});
+				}
+
 				canvasWrapper.addEventListener("dblclick", async () => {
 					await this.app.workspace.openLinkText(
 						`${this.file.path}#page=${this.pageNumber}`,
 						"",
 						false,
 					);
-				});
-
-				// Add hover effect
-				canvasWrapper.addEventListener("mouseenter", () => {
-					canvasWrapper.style.opacity = "0.85";
-					canvasWrapper.style.transform = "scale(0.99)";
-				});
-				canvasWrapper.addEventListener("mouseleave", () => {
-					canvasWrapper.style.opacity = "1";
-					canvasWrapper.style.transform = "scale(1)";
 				});
 			}
 
