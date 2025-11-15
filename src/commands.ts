@@ -4,6 +4,7 @@ import {
 	PageRangeModal,
 	StartPageModal,
 	SinglePageModal,
+	OldFilenameModal,
 } from "./modals";
 import { getPDFPageCount, generatePageEmbeds } from "./utils";
 import PDFPageEmbedderPlugin from "./main";
@@ -131,4 +132,87 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 			}).open();
 		},
 	});
+
+	// Command 5: Replace PDF filename in current file
+	plugin.addCommand({
+		id: "replace-pdf-filename",
+		name: "Replace PDF filename in current file",
+		editorCallback: (editor: Editor) => {
+			new OldFilenameModal(plugin.app, (oldFilename) => {
+				// After getting old filename, show PDF selector for new file
+				new PDFSelectorModal(plugin.app, async (newFile) => {
+					const content = editor.getValue();
+					const newFilename = newFile.name;
+
+					// Count occurrences before replacing
+					let occurrenceCount = 0;
+
+					// Replace in pdf-page blocks (both formats)
+					// Format 1: filename.pdf#5 or filename.pdf#5|width:100%
+					const simpleRegex = new RegExp(
+						`(${escapeRegExp(oldFilename)})(#\\d+)`,
+						"g",
+					);
+					occurrenceCount += (content.match(simpleRegex) || [])
+						.length;
+
+					// Format 2: file: filename.pdf
+					const multilineRegex = new RegExp(
+						`(file:\\s*)${escapeRegExp(oldFilename)}`,
+						"gi",
+					);
+					occurrenceCount += (content.match(multilineRegex) || [])
+						.length;
+
+					// Replace in native Obsidian links: ![[filename.pdf]] or ![[filename.pdf#page=5]]
+					const nativeLinkRegex = new RegExp(
+						`(!\\[\\[)${escapeRegExp(oldFilename)}((?:#page=\\d+)?\\]\\])`,
+						"g",
+					);
+					occurrenceCount += (content.match(nativeLinkRegex) || [])
+						.length;
+
+					if (occurrenceCount === 0) {
+						new Notice(
+							`No references to "${oldFilename}" found in current file`,
+						);
+						return;
+					}
+
+					// Perform replacements
+					let updatedContent = content;
+
+					// Replace in pdf-page blocks - simple format
+					updatedContent = updatedContent.replace(
+						simpleRegex,
+						`${newFilename}$2`,
+					);
+
+					// Replace in pdf-page blocks - multiline format
+					updatedContent = updatedContent.replace(
+						multilineRegex,
+						`$1${newFilename}`,
+					);
+
+					// Replace in native links
+					updatedContent = updatedContent.replace(
+						nativeLinkRegex,
+						`$1${newFilename}$2`,
+					);
+
+					// Update the editor content
+					editor.setValue(updatedContent);
+
+					new Notice(
+						`Replaced ${occurrenceCount} reference(s) from "${oldFilename}" to "${newFilename}"`,
+					);
+				}).open();
+			}).open();
+		},
+	});
+}
+
+// Helper function to escape special regex characters
+function escapeRegExp(string: string): string {
+	return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

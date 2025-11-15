@@ -44,8 +44,8 @@ export class PageRangeModal extends Modal {
 	file: TFile;
 	pageCount: number;
 	onSubmit: (startPage: number, endPage: number) => void;
-	startPageInput: string = "";
-	endPageInput: string = "";
+	startPageInput = "";
+	endPageInput = "";
 
 	constructor(
 		app: App,
@@ -145,7 +145,7 @@ export class StartPageModal extends Modal {
 	file: TFile;
 	pageCount: number;
 	onSubmit: (startPage: number) => void;
-	startPageInput: string = "";
+	startPageInput = "";
 
 	constructor(
 		app: App,
@@ -219,7 +219,7 @@ export class SinglePageModal extends Modal {
 	file: TFile;
 	pageCount: number;
 	onSubmit: (page: number) => void;
-	pageInput: string = "";
+	pageInput = "";
 
 	constructor(
 		app: App,
@@ -272,6 +272,66 @@ export class SinglePageModal extends Modal {
 
 						this.close();
 						this.onSubmit(page);
+					}),
+			)
+			.addButton((btn) =>
+				btn.setButtonText("Cancel").onClick(() => {
+					this.close();
+				}),
+			);
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+export class OldFilenameModal extends Modal {
+	onSubmit: (oldFilename: string) => void;
+	filenameInput = "";
+
+	constructor(app: App, onSubmit: (oldFilename: string) => void) {
+		super(app);
+		this.onSubmit = onSubmit;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+
+		contentEl.empty();
+		contentEl.createEl("h2", { text: "Replace PDF filename" });
+		contentEl.createEl("p", {
+			text: "Enter the old/broken PDF filename to replace (e.g., 'oldfile.pdf')",
+		});
+
+		new Setting(contentEl)
+			.setName("Old filename")
+			.setDesc("The filename that needs to be replaced")
+			.addText((text) =>
+				text
+					.setPlaceholder("oldfile.pdf")
+					.setValue(this.filenameInput)
+					.onChange((value) => {
+						this.filenameInput = value;
+					}),
+			);
+
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Next")
+					.setCta()
+					.onClick(() => {
+						const filename = this.filenameInput.trim();
+
+						if (!filename) {
+							new Notice("Please enter a filename");
+							return;
+						}
+
+						this.close();
+						this.onSubmit(filename);
 					}),
 			)
 			.addButton((btn) =>
