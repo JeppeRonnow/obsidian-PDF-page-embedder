@@ -1,10 +1,10 @@
 {
 	"id": "pdf-page-embedder",
 	"name": "PDF Page Embedder",
-	"version": "1.2.2",
+	"version": "1.2.3",
 	"minAppVersion": "1.0.0",
 	"description": "Quickly embed all pages of a PDF as individual page references with a custom, fast PDF renderer.",
 	"author": "Jeppe Ronnow",
 	"authorUrl": "https://github.com/JeppeRonnow",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }
