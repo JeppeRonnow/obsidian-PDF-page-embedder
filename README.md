@@ -6,15 +6,15 @@ Quickly embed all pages of a PDF file as individual page references in your Obsi
 
 ## Features
 
-- 🚀 Insert all PDF pages with a single command
-- ⚡ Custom PDF renderer - fast, clean, single-page view
-- 🎯 Multiple insertion modes (all pages, page ranges, single pages)
-- 🔄 Page rotation support (90°, 180°, 270°)
-- ↔️ Alignment options (left, center, right)
-- 📝 Text selection and copying from embedded pages
-- 🔢 Optional page number display
-- 👆 Double-click to open PDF at specific page
-- ⚙️ Configurable settings for default behavior
+- Insert all PDF pages with a single command
+- Custom PDF renderer with fast, clean, single-page view
+- Multiple insertion modes (all pages, page ranges, single pages)
+- Page rotation support (90°, 180°, 270°)
+- Alignment options (left, center, right)
+- Text selection and copying from embedded pages
+- Optional page number display
+- Double-click to open PDF at specific page
+- Configurable settings for default behavior
 
 ## Usage
 
@@ -31,6 +31,7 @@ Quickly embed all pages of a PDF file as individual page references in your Obsi
 - **Embed PDF from page to end** - Insert from a specific page to the end
 - **Embed PDF page range** - Insert a specific range of pages
 - **Embed single PDF page** - Insert just one page
+- **Replace PDF filename in current file** - Rename all references to a PDF file in the current note
 
 ### Output Format
 
@@ -73,39 +74,43 @@ rotate: 90
 align: center
 ```
 ````
+
 ## Custom PDF Renderer
 
 The plugin includes a custom PDF renderer that provides:
 
-✅ **Fast rendering** - Loads once, renders specific pages quickly
-✅ **Single-page view** - No scrolling, just the page you want
-✅ **Automatic sizing** - Fits perfectly within your note width
-✅ **Clean appearance** - No extra UI clutter
+- **Fast rendering** - Loads once, renders specific pages quickly
+- **Single-page view** - No scrolling, just the page you want
+- **Automatic sizing** - Fits perfectly within your note width
+- **Clean appearance** - No extra UI clutter
 
-## TODO
+## Roadmap
+
 ### Planned Features
-- [ ] **Custom page format templates**
-- [ ] **Every Nth page** *(useful for double-sided scans)*
-- [ ] **Preview mode**
-- [ ] **Custom separators**
+- Custom page format templates
+- Every Nth page (useful for double-sided scans)
+- Preview mode
+- Custom separators
 
 ## Installation
 
-### From Obsidian Community Plugins (comming!)
-1. Open Settings → Community Plugins
+### From Obsidian Community Plugins (coming soon)
+1. Open **Settings → Community Plugins**
 2. Search for "PDF Page Embedder"
-3. Click Install, then Enable
+3. Select **Install**, then **Enable**
 
 ### Manual Installation
 1. Download the latest release from GitHub
 2. Extract the files to your vault's `.obsidian/plugins/pdf-page-embedder/` folder
 3. Reload Obsidian
-4. Enable the plugin in Settings → Community Plugins
+4. Enable the plugin in **Settings → Community Plugins**
 
 ## Use Cases
 
-- 📚 Study notes: Embed textbook or article pages for annotation
-- 🎓 Lecture notes: Embed presentation slides page by page
+- **Study notes** - Embed textbook or article pages for annotation
+- **Lecture notes** - Embed presentation slides page by page
+- **Research** - Reference specific pages from papers and documents
+- **Documentation** - Include relevant manual or guide pages
 
 ## License
 
