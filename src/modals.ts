@@ -78,6 +78,12 @@ export class PageRangeModal extends Modal {
 					.setValue(this.startPageInput)
 					.onChange((value) => {
 						this.startPageInput = value;
+					})
+					.inputEl.addEventListener("keydown", (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							this.handleSubmit();
+						}
 					}),
 			);
 
@@ -90,6 +96,12 @@ export class PageRangeModal extends Modal {
 					.setValue(this.endPageInput)
 					.onChange((value) => {
 						this.endPageInput = value;
+					})
+					.inputEl.addEventListener("keydown", (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							this.handleSubmit();
+						}
 					}),
 			);
 
@@ -99,33 +111,7 @@ export class PageRangeModal extends Modal {
 					.setButtonText("Insert")
 					.setCta()
 					.onClick(() => {
-						const start = parseInt(this.startPageInput) || 1;
-						const end =
-							parseInt(this.endPageInput) || this.pageCount;
-
-						if (start < 1 || start > this.pageCount) {
-							new Notice(
-								`Start page must be between 1 and ${this.pageCount}`,
-							);
-							return;
-						}
-
-						if (end < 1 || end > this.pageCount) {
-							new Notice(
-								`End page must be between 1 and ${this.pageCount}`,
-							);
-							return;
-						}
-
-						if (start > end) {
-							new Notice(
-								"Start page must be less than or equal to end page",
-							);
-							return;
-						}
-
-						this.close();
-						this.onSubmit(start, end);
+						this.handleSubmit();
 					}),
 			)
 			.addButton((btn) =>
@@ -133,6 +119,39 @@ export class PageRangeModal extends Modal {
 					this.close();
 				}),
 			);
+	}
+
+	handleSubmit() {
+		const start = parseInt(this.startPageInput, 10);
+		const end = parseInt(this.endPageInput, 10);
+
+		if (isNaN(start) || start < 1) {
+			new Notice("Please enter a valid start page number");
+			return;
+		}
+
+		if (isNaN(end) || end < 1) {
+			new Notice("Please enter a valid end page number");
+			return;
+		}
+
+		if (start < 1 || start > this.pageCount) {
+			new Notice(`Start page must be between 1 and ${this.pageCount}`);
+			return;
+		}
+
+		if (end < 1 || end > this.pageCount) {
+			new Notice(`End page must be between 1 and ${this.pageCount}`);
+			return;
+		}
+
+		if (start > end) {
+			new Notice("Start page must be less than or equal to end page");
+			return;
+		}
+
+		this.close();
+		this.onSubmit(start, end);
 	}
 
 	onClose() {
@@ -180,6 +199,12 @@ export class StartPageModal extends Modal {
 					.setValue(this.startPageInput)
 					.onChange((value) => {
 						this.startPageInput = value;
+					})
+					.inputEl.addEventListener("keydown", (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							this.handleSubmit();
+						}
 					}),
 			);
 
@@ -189,17 +214,7 @@ export class StartPageModal extends Modal {
 					.setButtonText("Insert")
 					.setCta()
 					.onClick(() => {
-						const start = parseInt(this.startPageInput) || 1;
-
-						if (start < 1 || start > this.pageCount) {
-							new Notice(
-								`Start page must be between 1 and ${this.pageCount}`,
-							);
-							return;
-						}
-
-						this.close();
-						this.onSubmit(start);
+						this.handleSubmit();
 					}),
 			)
 			.addButton((btn) =>
@@ -207,6 +222,23 @@ export class StartPageModal extends Modal {
 					this.close();
 				}),
 			);
+	}
+
+	handleSubmit() {
+		const start = parseInt(this.startPageInput, 10);
+
+		if (isNaN(start) || start < 1) {
+			new Notice("Please enter a valid page number");
+			return;
+		}
+
+		if (start < 1 || start > this.pageCount) {
+			new Notice(`Start page must be between 1 and ${this.pageCount}`);
+			return;
+		}
+
+		this.close();
+		this.onSubmit(start);
 	}
 
 	onClose() {
@@ -252,6 +284,12 @@ export class SinglePageModal extends Modal {
 					.setValue(this.pageInput)
 					.onChange((value) => {
 						this.pageInput = value;
+					})
+					.inputEl.addEventListener("keydown", (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							this.handleSubmit();
+						}
 					}),
 			);
 
@@ -261,17 +299,7 @@ export class SinglePageModal extends Modal {
 					.setButtonText("Insert")
 					.setCta()
 					.onClick(() => {
-						const page = parseInt(this.pageInput) || 1;
-
-						if (page < 1 || page > this.pageCount) {
-							new Notice(
-								`Page must be between 1 and ${this.pageCount}`,
-							);
-							return;
-						}
-
-						this.close();
-						this.onSubmit(page);
+						this.handleSubmit();
 					}),
 			)
 			.addButton((btn) =>
@@ -279,6 +307,23 @@ export class SinglePageModal extends Modal {
 					this.close();
 				}),
 			);
+	}
+
+	handleSubmit() {
+		const page = parseInt(this.pageInput, 10);
+
+		if (isNaN(page) || page < 1) {
+			new Notice("Please enter a valid page number");
+			return;
+		}
+
+		if (page < 1 || page > this.pageCount) {
+			new Notice(`Page must be between 1 and ${this.pageCount}`);
+			return;
+		}
+
+		this.close();
+		this.onSubmit(page);
 	}
 
 	onClose() {
@@ -314,6 +359,12 @@ export class OldFilenameModal extends Modal {
 					.setValue(this.filenameInput)
 					.onChange((value) => {
 						this.filenameInput = value;
+					})
+					.inputEl.addEventListener("keydown", (e) => {
+						if (e.key === "Enter") {
+							e.preventDefault();
+							this.handleSubmit();
+						}
 					}),
 			);
 
@@ -323,15 +374,7 @@ export class OldFilenameModal extends Modal {
 					.setButtonText("Next")
 					.setCta()
 					.onClick(() => {
-						const filename = this.filenameInput.trim();
-
-						if (!filename) {
-							new Notice("Please enter a filename");
-							return;
-						}
-
-						this.close();
-						this.onSubmit(filename);
+						this.handleSubmit();
 					}),
 			)
 			.addButton((btn) =>
@@ -339,6 +382,18 @@ export class OldFilenameModal extends Modal {
 					this.close();
 				}),
 			);
+	}
+
+	handleSubmit() {
+		const filename = this.filenameInput.trim();
+
+		if (!filename) {
+			new Notice("Please enter a filename");
+			return;
+		}
+
+		this.close();
+		this.onSubmit(filename);
 	}
 
 	onClose() {

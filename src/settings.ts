@@ -123,8 +123,11 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 					.addOption("medium", "Medium (2.0x)")
 					.addOption("high", "High (3.0x)")
 					.setValue(this.plugin.settings.renderQuality)
-					.onChange(async (value: "low" | "medium" | "high") => {
-						this.plugin.settings.renderQuality = value;
+					.onChange(async (value) => {
+						this.plugin.settings.renderQuality = value as
+							| "low"
+							| "medium"
+							| "high";
 						await this.plugin.saveSettings();
 					}),
 			);

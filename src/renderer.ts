@@ -1,18 +1,31 @@
-import { MarkdownRenderChild, TFile } from "obsidian";
+import {
+	App,
+	MarkdownRenderChild,
+	TFile,
+	Menu,
+	MenuItem,
+	Notice,
+	Events,
+} from "obsidian";
 import { PDFCache } from "./pdf-cache";
 import { PDFPageEmbedderSettings } from "./settings";
 import * as pdfjsLib from "pdfjs-dist";
+import { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import PDFPageEmbedderPlugin from "./main";
 
 export class PDFPageRenderer extends MarkdownRenderChild {
 	file: TFile;
 	pageNumber: number;
-	app: any;
+	app: App;
 	width: string | null;
 	rotation: number;
 	alignment: string;
 	pdfCache: PDFCache;
 	settings: PDFPageEmbedderSettings;
-	renderTask: any = null;
+	events: Events;
+	manifestDir: string;
+	plugin: PDFPageEmbedderPlugin;
+	renderTask: RenderTask | null = null;
 	canvas: HTMLCanvasElement | null = null;
 	settingsChangeHandler: (() => void) | null = null;
 
@@ -20,9 +33,12 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		containerEl: HTMLElement,
 		file: TFile,
 		pageNumber: number,
-		app: any,
+		app: App,
 		pdfCache: PDFCache,
 		settings: PDFPageEmbedderSettings,
+		events: Events,
+		manifestDir: string,
+		plugin: PDFPageEmbedderPlugin,
 		width: string | null = null,
 		rotation = 0,
 		alignment = "left",
@@ -33,6 +49,9 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.app = app;
 		this.pdfCache = pdfCache;
 		this.settings = settings;
+		this.events = events;
+		this.manifestDir = manifestDir;
+		this.plugin = plugin;
 		this.width = width;
 		this.rotation = rotation;
 		this.alignment = alignment;
@@ -40,41 +59,31 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	async onload() {
 		// Register settings change listener
-		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
-		if (plugin && plugin.events) {
-			this.settingsChangeHandler = () => {
-				this.reloadPage();
-			};
-			plugin.events.on("settings-changed", this.settingsChangeHandler);
-		}
+		this.settingsChangeHandler = () => {
+			this.reloadPage();
+		};
+		this.events.on("settings-changed", this.settingsChangeHandler);
 
 		try {
 			// Set up PDF.js worker (load from plugin directory)
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
 				try {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const adapter = (this.app.vault as any).adapter;
-					const plugin = (this.app as any).plugins.plugins[
-						"pdf-page-embedder"
-					];
+					const workerPath = `${this.manifestDir}/pdf.worker.min.js`;
+					console.log(
+						"[PDF.js] Attempting to load worker from:",
+						workerPath,
+					);
 
-					if (plugin && plugin.manifest && plugin.manifest.dir) {
-						// Use the manifest directory path
-						const workerPath = `${plugin.manifest.dir}/pdf.worker.min.js`;
-						console.log(
-							"[PDF.js] Attempting to load worker from:",
-							workerPath,
-						);
-
-						const workerContent = await adapter.read(workerPath);
-						const blob = new Blob([workerContent], {
-							type: "application/javascript",
-						});
-						pdfjsLib.GlobalWorkerOptions.workerSrc =
-							URL.createObjectURL(blob);
-						console.log("[PDF.js] Worker loaded from local file");
-					} else {
-						throw new Error("Could not determine plugin directory");
-					}
+					const workerContent = await adapter.read(workerPath);
+					const blob = new Blob([workerContent], {
+						type: "application/javascript",
+					});
+					const blobUrl = URL.createObjectURL(blob);
+					this.plugin.workerBlobUrl = blobUrl;
+					pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
+					console.log("[PDF.js] Worker loaded from local file");
 				} catch (error) {
 					console.error(
 						"[PDF.js] Failed to load local worker:",
@@ -113,7 +122,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		}
 	}
 
-	async renderPDFPage(pdf: any, pageNumber: number) {
+	async renderPDFPage(pdf: PDFDocumentProxy, pageNumber: number) {
 		try {
 			const container = this.containerEl;
 			container.empty();
@@ -177,7 +186,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Add context menu for copying page as image
 			canvasWrapper.addEventListener("contextmenu", (event) => {
 				event.preventDefault();
-				this.showContextMenu(event, canvasWrapper);
+				this.showContextMenu(event);
 			});
 
 			// Create canvas for rendering
@@ -217,9 +226,12 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			try {
 				await this.renderTask.promise;
-			} catch (error: any) {
+			} catch (error) {
 				// Ignore cancellation errors
-				if (error.name !== "RenderingCancelledException") {
+				if (
+					error instanceof Error &&
+					error.name !== "RenderingCancelledException"
+				) {
 					throw error;
 				}
 			}
@@ -256,51 +268,49 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	onunload() {
 		// Unregister settings change listener
-		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
-		if (plugin && plugin.events && this.settingsChangeHandler) {
-			plugin.events.off("settings-changed", this.settingsChangeHandler);
+		if (this.settingsChangeHandler) {
+			this.events.off("settings-changed", this.settingsChangeHandler);
 			this.settingsChangeHandler = null;
 		}
 
-		// Cancel any pending render tasks
-		if (this.renderTask) {
-			try {
-				this.renderTask.cancel();
-			} catch (e) {
-				// Ignore errors on cancel
+		try {
+			// Cancel any pending render tasks
+			if (this.renderTask) {
+				try {
+					this.renderTask.cancel();
+				} catch (e) {
+					// Ignore errors on cancel
+				}
+				this.renderTask = null;
 			}
-			this.renderTask = null;
-		}
 
-		// Clear canvas to free memory
-		if (this.canvas) {
-			const context = this.canvas.getContext("2d");
-			if (context) {
-				context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+			// Clear canvas to free memory
+			if (this.canvas) {
+				const context = this.canvas.getContext("2d");
+				if (context) {
+					context.clearRect(
+						0,
+						0,
+						this.canvas.width,
+						this.canvas.height,
+					);
+				}
+				// Set canvas to minimal size to free memory
+				this.canvas.width = 1;
+				this.canvas.height = 1;
+				this.canvas = null;
 			}
-			// Set canvas to minimal size to free memory
-			this.canvas.width = 1;
-			this.canvas.height = 1;
-			this.canvas = null;
+		} catch (e) {
+			console.error("Error during canvas cleanup:", e);
+		} finally {
+			// Always release PDF from cache and clear container
+			this.pdfCache.release(this.file.path);
+			this.containerEl.empty();
 		}
-
-		// Release PDF from cache
-		this.pdfCache.release(this.file.path);
-
-		// Clear the container
-		this.containerEl.empty();
 	}
 
 	async reloadPage() {
 		try {
-			// Get fresh settings reference from plugin
-			const plugin = (this.app as any).plugins.plugins[
-				"pdf-page-embedder"
-			];
-			if (plugin && plugin.settings) {
-				this.settings = plugin.settings;
-			}
-
 			// Use cache to get PDF document (should be cached already)
 			const pdf = await this.pdfCache.get(this.file.path, async () => {
 				const arrayBuffer = await this.app.vault.readBinary(this.file);
@@ -324,12 +334,10 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		});
 	}
 
-	showContextMenu(event: MouseEvent, canvasWrapper: HTMLElement) {
-		// Import Menu from obsidian
-		const { Menu } = require("obsidian");
+	showContextMenu(event: MouseEvent) {
 		const menu = new Menu();
 
-		menu.addItem((item: any) => {
+		menu.addItem((item: MenuItem) => {
 			item.setTitle("Copy page as image")
 				.setIcon("image")
 				.onClick(async () => {
@@ -349,7 +357,11 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		try {
 			// Convert canvas to blob
 			const blob = await new Promise<Blob | null>((resolve) => {
-				this.canvas!.toBlob((blob) => {
+				if (!this.canvas) {
+					resolve(null);
+					return;
+				}
+				this.canvas.toBlob((blob) => {
 					resolve(blob);
 				}, "image/png");
 			});
@@ -363,71 +375,13 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			await navigator.clipboard.write([clipboardItem]);
 
 			// Show success notice
-			const { Notice } = require("obsidian");
 			new Notice(`Page ${this.pageNumber} copied as image to clipboard`);
 		} catch (error) {
 			console.error("Error copying page as image:", error);
-			const { Notice } = require("obsidian");
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
 			new Notice(`Failed to copy image: ${errorMessage}`);
 		}
-	}
-
-	private parseWidth(width: string, container: HTMLElement): number {
-		// Handle percentage widths
-		if (width.endsWith("%")) {
-			const percentage = parseFloat(width);
-			const containerWidth = container.parentElement?.clientWidth || 600;
-			return (containerWidth * percentage) / 100;
-		}
-
-		// Handle pixel values
-		if (width.endsWith("px")) {
-			return parseFloat(width);
-		}
-
-		// For any other value, try to parse as number (assume pixels)
-		const parsed = parseFloat(width);
-		return isNaN(parsed) ? 600 : parsed;
-	}
-
-	private getContainerWidth(container: HTMLElement): number {
-		// Traverse up the DOM to find the markdown content container
-		let current: HTMLElement | null = container;
-		let candidateWidth = 0;
-
-		// Look up the tree for content containers
-		while (current) {
-			const width = current.clientWidth;
-
-			// Look for Obsidian's markdown preview containers
-			if (
-				current.classList.contains("markdown-preview-view") ||
-				current.classList.contains("markdown-preview-section") ||
-				current.classList.contains("cm-content") ||
-				current.classList.contains("cm-contentContainer")
-			) {
-				if (width > candidateWidth) {
-					candidateWidth = width;
-				}
-			}
-
-			// Keep track of the largest reasonable width we find
-			if (width > candidateWidth && width < 2000) {
-				candidateWidth = width;
-			}
-
-			current = current.parentElement;
-		}
-
-		// If we found a reasonable width, use it
-		if (candidateWidth > 200) {
-			return candidateWidth;
-		}
-
-		// Fallback
-		return 600;
 	}
 
 	private getRenderScale(): number {
