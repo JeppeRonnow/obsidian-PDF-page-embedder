@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.2.3",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "obsidian-pdf-page-embedder",
+	"version": "1.2.4",
+	"description": "Quickly embed all pages of a PDF as individual page references with a custom, fast PDF renderer.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
