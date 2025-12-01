@@ -1,10 +1,17 @@
+import { PDFDocumentProxy } from "pdfjs-dist";
+
 export class PDFCache {
 	private cache: Map<
 		string,
-		{ pdf: any; refCount: number; lastUsed: number; cachedWidth?: number }
+		{
+			pdf: PDFDocumentProxy;
+			refCount: number;
+			lastUsed: number;
+			cachedWidth?: number;
+		}
 	> = new Map();
-	private maxCacheSize: number = 3; // Only keep 3 PDFs in memory max
-	private cleanupInterval: any = null;
+	private maxCacheSize = 3; // Only keep 3 PDFs in memory max
+	private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 	constructor() {
 		// Run cleanup every 30 seconds
@@ -14,12 +21,15 @@ export class PDFCache {
 		);
 	}
 
-	async get(filePath: string, loadFn: () => Promise<any>): Promise<any> {
-		if (this.cache.has(filePath)) {
-			const entry = this.cache.get(filePath)!;
-			entry.refCount++;
-			entry.lastUsed = Date.now();
-			return entry.pdf;
+	async get(
+		filePath: string,
+		loadFn: () => Promise<PDFDocumentProxy>,
+	): Promise<PDFDocumentProxy> {
+		const existingEntry = this.cache.get(filePath);
+		if (existingEntry) {
+			existingEntry.refCount++;
+			existingEntry.lastUsed = Date.now();
+			return existingEntry.pdf;
 		}
 
 		// Check if we need to evict old PDFs
@@ -56,10 +66,12 @@ export class PDFCache {
 		}
 
 		if (oldestPath) {
-			const entry = this.cache.get(oldestPath)!;
-			entry.pdf.destroy();
-			this.cache.delete(oldestPath);
-			console.log(`Evicted PDF from cache: ${oldestPath}`);
+			const entry = this.cache.get(oldestPath);
+			if (entry) {
+				entry.pdf.destroy();
+				this.cache.delete(oldestPath);
+				console.log(`Evicted PDF from cache: ${oldestPath}`);
+			}
 		}
 	}
 

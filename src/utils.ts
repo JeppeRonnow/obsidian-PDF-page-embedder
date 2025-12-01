@@ -1,7 +1,7 @@
-import { TFile, Notice } from "obsidian";
+import { App, TFile, Notice } from "obsidian";
 import { PDFDocument } from "pdf-lib";
 
-export async function getPDFPageCount(app: any, file: TFile): Promise<number> {
+export async function getPDFPageCount(app: App, file: TFile): Promise<number> {
 	try {
 		const arrayBuffer = await app.vault.readBinary(file);
 		const pdfDoc = await PDFDocument.load(arrayBuffer);

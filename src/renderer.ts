@@ -1,18 +1,26 @@
-import { MarkdownRenderChild, TFile } from "obsidian";
+import {
+	App,
+	MarkdownRenderChild,
+	TFile,
+	Menu,
+	MenuItem,
+	Notice,
+} from "obsidian";
 import { PDFCache } from "./pdf-cache";
 import { PDFPageEmbedderSettings } from "./settings";
 import * as pdfjsLib from "pdfjs-dist";
+import { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
 export class PDFPageRenderer extends MarkdownRenderChild {
 	file: TFile;
 	pageNumber: number;
-	app: any;
+	app: App;
 	width: string | null;
 	rotation: number;
 	alignment: string;
 	pdfCache: PDFCache;
 	settings: PDFPageEmbedderSettings;
-	renderTask: any = null;
+	renderTask: RenderTask | null = null;
 	canvas: HTMLCanvasElement | null = null;
 	settingsChangeHandler: (() => void) | null = null;
 
@@ -20,7 +28,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		containerEl: HTMLElement,
 		file: TFile,
 		pageNumber: number,
-		app: any,
+		app: App,
 		pdfCache: PDFCache,
 		settings: PDFPageEmbedderSettings,
 		width: string | null = null,
@@ -40,6 +48,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	async onload() {
 		// Register settings change listener
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
 		if (plugin && plugin.events) {
 			this.settingsChangeHandler = () => {
@@ -52,7 +61,9 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Set up PDF.js worker (load from plugin directory)
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
 				try {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const adapter = (this.app.vault as any).adapter;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const plugin = (this.app as any).plugins.plugins[
 						"pdf-page-embedder"
 					];
@@ -113,7 +124,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		}
 	}
 
-	async renderPDFPage(pdf: any, pageNumber: number) {
+	async renderPDFPage(pdf: PDFDocumentProxy, pageNumber: number) {
 		try {
 			const container = this.containerEl;
 			container.empty();
@@ -217,9 +228,12 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			try {
 				await this.renderTask.promise;
-			} catch (error: any) {
+			} catch (error) {
 				// Ignore cancellation errors
-				if (error.name !== "RenderingCancelledException") {
+				if (
+					error instanceof Error &&
+					error.name !== "RenderingCancelledException"
+				) {
 					throw error;
 				}
 			}
@@ -256,6 +270,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	onunload() {
 		// Unregister settings change listener
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
 		if (plugin && plugin.events && this.settingsChangeHandler) {
 			plugin.events.off("settings-changed", this.settingsChangeHandler);
@@ -294,6 +309,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	async reloadPage() {
 		try {
 			// Get fresh settings reference from plugin
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const plugin = (this.app as any).plugins.plugins[
 				"pdf-page-embedder"
 			];
@@ -325,11 +341,9 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	}
 
 	showContextMenu(event: MouseEvent, canvasWrapper: HTMLElement) {
-		// Import Menu from obsidian
-		const { Menu } = require("obsidian");
 		const menu = new Menu();
 
-		menu.addItem((item: any) => {
+		menu.addItem((item: MenuItem) => {
 			item.setTitle("Copy page as image")
 				.setIcon("image")
 				.onClick(async () => {
@@ -349,7 +363,11 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		try {
 			// Convert canvas to blob
 			const blob = await new Promise<Blob | null>((resolve) => {
-				this.canvas!.toBlob((blob) => {
+				if (!this.canvas) {
+					resolve(null);
+					return;
+				}
+				this.canvas.toBlob((blob) => {
 					resolve(blob);
 				}, "image/png");
 			});
@@ -363,11 +381,9 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			await navigator.clipboard.write([clipboardItem]);
 
 			// Show success notice
-			const { Notice } = require("obsidian");
 			new Notice(`Page ${this.pageNumber} copied as image to clipboard`);
 		} catch (error) {
 			console.error("Error copying page as image:", error);
-			const { Notice } = require("obsidian");
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
 			new Notice(`Failed to copy image: ${errorMessage}`);
