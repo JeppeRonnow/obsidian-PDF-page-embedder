@@ -12,6 +12,7 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 	settings: PDFPageEmbedderSettings;
 	pdfCache: PDFCache;
 	events: Events;
+	workerBlobUrl: string | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -89,6 +90,7 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			this.settings,
 			this.events,
 			this.manifest.dir || "",
+			this,
 			width,
 			rotation,
 			alignment,
@@ -100,6 +102,12 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 		// Clear PDF cache on plugin unload
 		if (this.pdfCache) {
 			this.pdfCache.clear();
+		}
+
+		// Revoke worker blob URL to prevent memory leak
+		if (this.workerBlobUrl) {
+			URL.revokeObjectURL(this.workerBlobUrl);
+			this.workerBlobUrl = null;
 		}
 	}
 

@@ -11,6 +11,7 @@ import { PDFCache } from "./pdf-cache";
 import { PDFPageEmbedderSettings } from "./settings";
 import * as pdfjsLib from "pdfjs-dist";
 import { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import PDFPageEmbedderPlugin from "./main";
 
 export class PDFPageRenderer extends MarkdownRenderChild {
 	file: TFile;
@@ -23,6 +24,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	settings: PDFPageEmbedderSettings;
 	events: Events;
 	manifestDir: string;
+	plugin: PDFPageEmbedderPlugin;
 	renderTask: RenderTask | null = null;
 	canvas: HTMLCanvasElement | null = null;
 	settingsChangeHandler: (() => void) | null = null;
@@ -36,6 +38,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		settings: PDFPageEmbedderSettings,
 		events: Events,
 		manifestDir: string,
+		plugin: PDFPageEmbedderPlugin,
 		width: string | null = null,
 		rotation = 0,
 		alignment = "left",
@@ -48,6 +51,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.settings = settings;
 		this.events = events;
 		this.manifestDir = manifestDir;
+		this.plugin = plugin;
 		this.width = width;
 		this.rotation = rotation;
 		this.alignment = alignment;
@@ -76,8 +80,9 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 					const blob = new Blob([workerContent], {
 						type: "application/javascript",
 					});
-					pdfjsLib.GlobalWorkerOptions.workerSrc =
-						URL.createObjectURL(blob);
+					const blobUrl = URL.createObjectURL(blob);
+					this.plugin.workerBlobUrl = blobUrl;
+					pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
 					console.log("[PDF.js] Worker loaded from local file");
 				} catch (error) {
 					console.error(
@@ -268,33 +273,40 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			this.settingsChangeHandler = null;
 		}
 
-		// Cancel any pending render tasks
-		if (this.renderTask) {
-			try {
-				this.renderTask.cancel();
-			} catch (e) {
-				// Ignore errors on cancel
+		try {
+			// Cancel any pending render tasks
+			if (this.renderTask) {
+				try {
+					this.renderTask.cancel();
+				} catch (e) {
+					// Ignore errors on cancel
+				}
+				this.renderTask = null;
 			}
-			this.renderTask = null;
-		}
 
-		// Clear canvas to free memory
-		if (this.canvas) {
-			const context = this.canvas.getContext("2d");
-			if (context) {
-				context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+			// Clear canvas to free memory
+			if (this.canvas) {
+				const context = this.canvas.getContext("2d");
+				if (context) {
+					context.clearRect(
+						0,
+						0,
+						this.canvas.width,
+						this.canvas.height,
+					);
+				}
+				// Set canvas to minimal size to free memory
+				this.canvas.width = 1;
+				this.canvas.height = 1;
+				this.canvas = null;
 			}
-			// Set canvas to minimal size to free memory
-			this.canvas.width = 1;
-			this.canvas.height = 1;
-			this.canvas = null;
+		} catch (e) {
+			console.error("Error during canvas cleanup:", e);
+		} finally {
+			// Always release PDF from cache and clear container
+			this.pdfCache.release(this.file.path);
+			this.containerEl.empty();
 		}
-
-		// Release PDF from cache
-		this.pdfCache.release(this.file.path);
-
-		// Clear the container
-		this.containerEl.empty();
 	}
 
 	async reloadPage() {
