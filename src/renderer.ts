@@ -186,7 +186,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Add context menu for copying page as image
 			canvasWrapper.addEventListener("contextmenu", (event) => {
 				event.preventDefault();
-				this.showContextMenu(event, canvasWrapper);
+				this.showContextMenu(event);
 			});
 
 			// Create canvas for rendering
@@ -334,7 +334,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		});
 	}
 
-	showContextMenu(event: MouseEvent, canvasWrapper: HTMLElement) {
+	showContextMenu(event: MouseEvent) {
 		const menu = new Menu();
 
 		menu.addItem((item: MenuItem) => {
