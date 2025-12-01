@@ -99,9 +99,20 @@ export class PageRangeModal extends Modal {
 					.setButtonText("Insert")
 					.setCta()
 					.onClick(() => {
-						const start = parseInt(this.startPageInput) || 1;
-						const end =
-							parseInt(this.endPageInput) || this.pageCount;
+						const start = parseInt(this.startPageInput, 10);
+						const end = parseInt(this.endPageInput, 10);
+
+						if (isNaN(start) || start < 1) {
+							new Notice(
+								"Please enter a valid start page number",
+							);
+							return;
+						}
+
+						if (isNaN(end) || end < 1) {
+							new Notice("Please enter a valid end page number");
+							return;
+						}
 
 						if (start < 1 || start > this.pageCount) {
 							new Notice(
@@ -189,7 +200,12 @@ export class StartPageModal extends Modal {
 					.setButtonText("Insert")
 					.setCta()
 					.onClick(() => {
-						const start = parseInt(this.startPageInput) || 1;
+						const start = parseInt(this.startPageInput, 10);
+
+						if (isNaN(start) || start < 1) {
+							new Notice("Please enter a valid page number");
+							return;
+						}
 
 						if (start < 1 || start > this.pageCount) {
 							new Notice(
@@ -261,7 +277,12 @@ export class SinglePageModal extends Modal {
 					.setButtonText("Insert")
 					.setCta()
 					.onClick(() => {
-						const page = parseInt(this.pageInput) || 1;
+						const page = parseInt(this.pageInput, 10);
+
+						if (isNaN(page) || page < 1) {
+							new Notice("Please enter a valid page number");
+							return;
+						}
 
 						if (page < 1 || page > this.pageCount) {
 							new Notice(

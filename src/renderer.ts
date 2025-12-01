@@ -5,6 +5,7 @@ import {
 	Menu,
 	MenuItem,
 	Notice,
+	Events,
 } from "obsidian";
 import { PDFCache } from "./pdf-cache";
 import { PDFPageEmbedderSettings } from "./settings";
@@ -20,6 +21,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	alignment: string;
 	pdfCache: PDFCache;
 	settings: PDFPageEmbedderSettings;
+	events: Events;
+	manifestDir: string;
 	renderTask: RenderTask | null = null;
 	canvas: HTMLCanvasElement | null = null;
 	settingsChangeHandler: (() => void) | null = null;
@@ -31,6 +34,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		app: App,
 		pdfCache: PDFCache,
 		settings: PDFPageEmbedderSettings,
+		events: Events,
+		manifestDir: string,
 		width: string | null = null,
 		rotation = 0,
 		alignment = "left",
@@ -41,6 +46,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.app = app;
 		this.pdfCache = pdfCache;
 		this.settings = settings;
+		this.events = events;
+		this.manifestDir = manifestDir;
 		this.width = width;
 		this.rotation = rotation;
 		this.alignment = alignment;
@@ -48,14 +55,10 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	async onload() {
 		// Register settings change listener
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
-		if (plugin && plugin.events) {
-			this.settingsChangeHandler = () => {
-				this.reloadPage();
-			};
-			plugin.events.on("settings-changed", this.settingsChangeHandler);
-		}
+		this.settingsChangeHandler = () => {
+			this.reloadPage();
+		};
+		this.events.on("settings-changed", this.settingsChangeHandler);
 
 		try {
 			// Set up PDF.js worker (load from plugin directory)
@@ -63,29 +66,19 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				try {
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const adapter = (this.app.vault as any).adapter;
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const plugin = (this.app as any).plugins.plugins[
-						"pdf-page-embedder"
-					];
+					const workerPath = `${this.manifestDir}/pdf.worker.min.js`;
+					console.log(
+						"[PDF.js] Attempting to load worker from:",
+						workerPath,
+					);
 
-					if (plugin && plugin.manifest && plugin.manifest.dir) {
-						// Use the manifest directory path
-						const workerPath = `${plugin.manifest.dir}/pdf.worker.min.js`;
-						console.log(
-							"[PDF.js] Attempting to load worker from:",
-							workerPath,
-						);
-
-						const workerContent = await adapter.read(workerPath);
-						const blob = new Blob([workerContent], {
-							type: "application/javascript",
-						});
-						pdfjsLib.GlobalWorkerOptions.workerSrc =
-							URL.createObjectURL(blob);
-						console.log("[PDF.js] Worker loaded from local file");
-					} else {
-						throw new Error("Could not determine plugin directory");
-					}
+					const workerContent = await adapter.read(workerPath);
+					const blob = new Blob([workerContent], {
+						type: "application/javascript",
+					});
+					pdfjsLib.GlobalWorkerOptions.workerSrc =
+						URL.createObjectURL(blob);
+					console.log("[PDF.js] Worker loaded from local file");
 				} catch (error) {
 					console.error(
 						"[PDF.js] Failed to load local worker:",
@@ -270,10 +263,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	onunload() {
 		// Unregister settings change listener
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const plugin = (this.app as any).plugins.plugins["pdf-page-embedder"];
-		if (plugin && plugin.events && this.settingsChangeHandler) {
-			plugin.events.off("settings-changed", this.settingsChangeHandler);
+		if (this.settingsChangeHandler) {
+			this.events.off("settings-changed", this.settingsChangeHandler);
 			this.settingsChangeHandler = null;
 		}
 
@@ -308,15 +299,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	async reloadPage() {
 		try {
-			// Get fresh settings reference from plugin
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const plugin = (this.app as any).plugins.plugins[
-				"pdf-page-embedder"
-			];
-			if (plugin && plugin.settings) {
-				this.settings = plugin.settings;
-			}
-
 			// Use cache to get PDF document (should be cached already)
 			const pdf = await this.pdfCache.get(this.file.path, async () => {
 				const arrayBuffer = await this.app.vault.readBinary(this.file);
@@ -388,62 +370,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				error instanceof Error ? error.message : "Unknown error";
 			new Notice(`Failed to copy image: ${errorMessage}`);
 		}
-	}
-
-	private parseWidth(width: string, container: HTMLElement): number {
-		// Handle percentage widths
-		if (width.endsWith("%")) {
-			const percentage = parseFloat(width);
-			const containerWidth = container.parentElement?.clientWidth || 600;
-			return (containerWidth * percentage) / 100;
-		}
-
-		// Handle pixel values
-		if (width.endsWith("px")) {
-			return parseFloat(width);
-		}
-
-		// For any other value, try to parse as number (assume pixels)
-		const parsed = parseFloat(width);
-		return isNaN(parsed) ? 600 : parsed;
-	}
-
-	private getContainerWidth(container: HTMLElement): number {
-		// Traverse up the DOM to find the markdown content container
-		let current: HTMLElement | null = container;
-		let candidateWidth = 0;
-
-		// Look up the tree for content containers
-		while (current) {
-			const width = current.clientWidth;
-
-			// Look for Obsidian's markdown preview containers
-			if (
-				current.classList.contains("markdown-preview-view") ||
-				current.classList.contains("markdown-preview-section") ||
-				current.classList.contains("cm-content") ||
-				current.classList.contains("cm-contentContainer")
-			) {
-				if (width > candidateWidth) {
-					candidateWidth = width;
-				}
-			}
-
-			// Keep track of the largest reasonable width we find
-			if (width > candidateWidth && width < 2000) {
-				candidateWidth = width;
-			}
-
-			current = current.parentElement;
-		}
-
-		// If we found a reasonable width, use it
-		if (candidateWidth > 200) {
-			return candidateWidth;
-		}
-
-		// Fallback
-		return 600;
 	}
 
 	private getRenderScale(): number {

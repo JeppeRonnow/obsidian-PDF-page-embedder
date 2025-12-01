@@ -87,6 +87,8 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			this.app,
 			this.pdfCache,
 			this.settings,
+			this.events,
+			this.manifest.dir || "",
 			width,
 			rotation,
 			alignment,
