@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-pdf-page-embedder",
-	"version": "1.2.4",
+	"version": "1.2.5",
 	"description": "Quickly embed all pages of a PDF as individual page references with a custom, fast PDF renderer.",
 	"main": "main.js",
 	"scripts": {
