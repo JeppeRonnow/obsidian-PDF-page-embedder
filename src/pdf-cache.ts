@@ -10,6 +10,7 @@ export class PDFCache {
 			cachedWidth?: number;
 		}
 	> = new Map();
+	private pending: Map<string, Promise<PDFDocumentProxy>> = new Map();
 	private maxCacheSize = 3; // Only keep 3 PDFs in memory max
 	private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -25,6 +26,7 @@ export class PDFCache {
 		filePath: string,
 		loadFn: () => Promise<PDFDocumentProxy>,
 	): Promise<PDFDocumentProxy> {
+		// Return existing cached entry
 		const existingEntry = this.cache.get(filePath);
 		if (existingEntry) {
 			existingEntry.refCount++;
@@ -32,21 +34,48 @@ export class PDFCache {
 			return existingEntry.pdf;
 		}
 
-		// Check if we need to evict old PDFs
-		if (this.cache.size >= this.maxCacheSize) {
-			this.evictOldest();
+		// Deduplicate concurrent loads for the same file path.
+		// If another caller is already loading this PDF, wait for that
+		// same promise instead of spawning a duplicate load.
+		let pendingPromise = this.pending.get(filePath);
+		if (!pendingPromise) {
+			pendingPromise = loadFn();
+			this.pending.set(filePath, pendingPromise);
 		}
 
-		const pdf = await loadFn();
-		this.cache.set(filePath, { pdf, refCount: 1, lastUsed: Date.now() });
-		return pdf;
+		try {
+			const pdf = await pendingPromise;
+
+			// After await, check if another concurrent caller already cached it
+			const existingNow = this.cache.get(filePath);
+			if (existingNow) {
+				existingNow.refCount++;
+				existingNow.lastUsed = Date.now();
+				return existingNow.pdf;
+			}
+
+			// Check if we need to evict old PDFs
+			if (this.cache.size >= this.maxCacheSize) {
+				this.evictOldest();
+			}
+
+			this.cache.set(filePath, {
+				pdf,
+				refCount: 1,
+				lastUsed: Date.now(),
+			});
+			return pdf;
+		} finally {
+			this.pending.delete(filePath);
+		}
 	}
 
 	release(filePath: string) {
 		const entry = this.cache.get(filePath);
 		if (!entry) return;
 
-		entry.refCount--;
+		// Guard against going below zero
+		entry.refCount = Math.max(0, entry.refCount - 1);
 		entry.lastUsed = Date.now();
 
 		// Don't immediately destroy - let cleanup handle it
@@ -59,7 +88,7 @@ export class PDFCache {
 
 		for (const [path, entry] of this.cache.entries()) {
 			// Only evict if not currently in use
-			if (entry.refCount === 0 && entry.lastUsed < oldestTime) {
+			if (entry.refCount <= 0 && entry.lastUsed < oldestTime) {
 				oldestTime = entry.lastUsed;
 				oldestPath = path;
 			}
@@ -81,7 +110,7 @@ export class PDFCache {
 
 		for (const [path, entry] of this.cache.entries()) {
 			// Remove entries that haven't been used in a while and aren't in use
-			if (entry.refCount === 0 && now - entry.lastUsed > maxAge) {
+			if (entry.refCount <= 0 && now - entry.lastUsed > maxAge) {
 				entry.pdf.destroy();
 				this.cache.delete(path);
 				console.log(`Cleaned up unused PDF: ${path}`);
@@ -94,6 +123,10 @@ export class PDFCache {
 			clearInterval(this.cleanupInterval);
 			this.cleanupInterval = null;
 		}
+
+		// Cancel any pending loads (they'll resolve but won't be cached
+		// since we clear the cache)
+		this.pending.clear();
 
 		for (const entry of this.cache.values()) {
 			entry.pdf.destroy();

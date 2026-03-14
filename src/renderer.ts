@@ -128,6 +128,23 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 	async renderPDFPage(pdf: PDFDocumentProxy, pageNumber: number) {
 		try {
+			// Cancel any in-progress render task before starting a new one
+			if (this.renderTask) {
+				try {
+					this.renderTask.cancel();
+				} catch (e) {
+					// Ignore errors on cancel
+				}
+				this.renderTask = null;
+			}
+
+			// Zero out old canvas to free GPU/memory before removing from DOM
+			if (this.canvas) {
+				this.canvas.width = 1;
+				this.canvas.height = 1;
+				this.canvas = null;
+			}
+
 			const container = this.containerEl;
 			container.empty();
 			container.addClass("pdf-page-embed-container");
@@ -322,8 +339,14 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				return await loadingTask.promise;
 			});
 
-			// Re-render the page with updated settings
-			await this.renderPDFPage(pdf, this.pageNumber);
+			try {
+				// Re-render the page with updated settings
+				await this.renderPDFPage(pdf, this.pageNumber);
+			} finally {
+				// Always release the extra refCount from get() above.
+				// The renderer's own refCount (from onload) is released in onunload.
+				this.pdfCache.release(this.file.path);
+			}
 		} catch (error) {
 			console.error("Error reloading PDF page:", error);
 		}
@@ -418,7 +441,10 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
 				return await loadingTask.promise;
 			});
-			return pdf.numPages;
+			const total = pdf.numPages;
+			// Release the extra refCount from get() — we only needed to read numPages
+			this.pdfCache.release(this.file.path);
+			return total;
 		} catch {
 			return 0;
 		}

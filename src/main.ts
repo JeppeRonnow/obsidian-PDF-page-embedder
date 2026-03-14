@@ -7,6 +7,7 @@ import {
 import { registerCommands } from "./commands";
 import { PDFPageRenderer, parsePDFPageBlock } from "./renderer";
 import { PDFCache } from "./pdf-cache";
+import * as pdfjsLib from "pdfjs-dist";
 
 export default class PDFPageEmbedderPlugin extends Plugin {
 	settings: PDFPageEmbedderSettings;
@@ -105,11 +106,13 @@ export default class PDFPageEmbedderPlugin extends Plugin {
 			this.pdfCache.clear();
 		}
 
-		// Revoke worker blob URL to prevent memory leak
+		// Revoke worker blob URL and reset global workerSrc so it gets
+		// re-initialized properly if the plugin is reloaded without an app restart.
 		if (this.workerBlobUrl) {
 			URL.revokeObjectURL(this.workerBlobUrl);
 			this.workerBlobUrl = null;
 		}
+		pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 	}
 
 	async loadSettings() {
