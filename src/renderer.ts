@@ -1,5 +1,6 @@
 import {
 	App,
+	MarkdownPostProcessorContext,
 	MarkdownRenderChild,
 	TFile,
 	Menu,
@@ -25,6 +26,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	events: Events;
 	manifestDir: string;
 	plugin: PDFPageEmbedderPlugin;
+	ctx: MarkdownPostProcessorContext;
 	renderTask: RenderTask | null = null;
 	canvas: HTMLCanvasElement | null = null;
 	settingsChangeHandler: (() => void) | null = null;
@@ -39,6 +41,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		events: Events,
 		manifestDir: string,
 		plugin: PDFPageEmbedderPlugin,
+		ctx: MarkdownPostProcessorContext,
 		width: string | null = null,
 		rotation = 0,
 		alignment = "left",
@@ -52,6 +55,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.events = events;
 		this.manifestDir = manifestDir;
 		this.plugin = plugin;
+		this.ctx = ctx;
 		this.width = width;
 		this.rotation = rotation;
 		this.alignment = alignment;
@@ -334,8 +338,31 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		});
 	}
 
-	showContextMenu(event: MouseEvent) {
+	async showContextMenu(event: MouseEvent) {
 		const menu = new Menu();
+		const totalPages = await this.getTotalPages();
+
+		if (this.pageNumber > 1) {
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Previous page")
+					.setIcon("arrow-left")
+					.onClick(async () => {
+						await this.changePageInSource(this.pageNumber - 1);
+					});
+			});
+		}
+
+		if (totalPages > 0 && this.pageNumber < totalPages) {
+			menu.addItem((item: MenuItem) => {
+				item.setTitle("Next page")
+					.setIcon("arrow-right")
+					.onClick(async () => {
+						await this.changePageInSource(this.pageNumber + 1);
+					});
+			});
+		}
+
+		menu.addSeparator();
 
 		menu.addItem((item: MenuItem) => {
 			item.setTitle("Copy page as image")
@@ -381,6 +408,69 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
 			new Notice(`Failed to copy image: ${errorMessage}`);
+		}
+	}
+
+	async getTotalPages(): Promise<number> {
+		try {
+			const pdf = await this.pdfCache.get(this.file.path, async () => {
+				const arrayBuffer = await this.app.vault.readBinary(this.file);
+				const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+				return await loadingTask.promise;
+			});
+			return pdf.numPages;
+		} catch {
+			return 0;
+		}
+	}
+
+	async changePageInSource(newPage: number) {
+		// Get the section info for this code block from the post-processor context
+		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
+		if (!sectionInfo) {
+			new Notice("Could not locate embed in source to change page");
+			return;
+		}
+
+		// Get the active editor - we need it to modify the source
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const activeEditor = (this.app.workspace as any).activeEditor;
+		const editor = activeEditor?.editor;
+		if (!editor) {
+			new Notice("No active editor found to update page");
+			return;
+		}
+
+		const { lineStart, lineEnd } = sectionInfo;
+
+		// Read all lines of the code block from the editor
+		const lines: string[] = [];
+		for (let i = lineStart; i <= lineEnd; i++) {
+			lines.push(editor.getLine(i));
+		}
+		const blockContent = lines.join("\n");
+
+		// Replace the page number in the block content
+		// Handle simple format: filename.pdf#5 or filename.pdf#5|width:100%
+		let updatedContent = blockContent.replace(
+			/^(.+\.pdf)#\d+(.*)$/im,
+			`$1#${newPage}$2`,
+		);
+
+		// Handle multi-line format: page: 5
+		updatedContent = updatedContent.replace(
+			/^(page:\s*)\d+$/im,
+			`$1${newPage}`,
+		);
+
+		// Replace the lines in the editor
+		if (updatedContent !== blockContent) {
+			const from = { line: lineStart, ch: 0 };
+			const lastLineLength = editor.getLine(lineEnd).length;
+			const to = { line: lineEnd, ch: lastLineLength };
+			editor.replaceRange(updatedContent, from, to);
+		} else {
+			new Notice("Could not find page number to update in embed");
 		}
 	}
 
