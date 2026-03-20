@@ -115,7 +115,7 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Render quality")
 			.setDesc(
-				"Quality of PDF page rendering. Low (1.0x): faster, smaller memory. Medium (2.0x): balanced. High (3.0x): crisp on high-DPI displays, uses more memory.",
+				"Controls the internal resolution of the renderer, not the display size of the embed. 1x is standard. 2x and 3x render at higher pixel densities (sharper) but use significantly more memory.",
 			)
 			.addDropdown((dropdown) =>
 				dropdown

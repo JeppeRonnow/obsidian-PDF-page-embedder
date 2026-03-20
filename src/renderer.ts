@@ -395,6 +395,28 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				});
 		});
 
+		menu.addItem((item: MenuItem) => {
+			item.setTitle("Open in new tab")
+				.setIcon("external-link")
+				.onClick(async () => {
+					await this.app.workspace.openLinkText(
+						`${this.file.path}#page=${this.pageNumber}`,
+						"",
+						true,
+					);
+				});
+		});
+
+		menu.addSeparator();
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle("Delete embed")
+				.setIcon("trash")
+				.onClick(async () => {
+					await this.deleteEmbed();
+				});
+		});
+
 		menu.showAtMouseEvent(event);
 	}
 
@@ -432,6 +454,34 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				error instanceof Error ? error.message : "Unknown error";
 			new Notice(`Failed to copy image: ${errorMessage}`);
 		}
+	}
+
+	async deleteEmbed() {
+		// Get the section info for this code block from the post-processor context
+		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
+		if (!sectionInfo) {
+			new Notice("Could not locate embed in source to delete");
+			return;
+		}
+
+		// Get the active editor - we need it to modify the source
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const activeEditor = (this.app.workspace as any).activeEditor;
+		const editor = activeEditor?.editor;
+		if (!editor) {
+			new Notice("No active editor found to delete embed");
+			return;
+		}
+
+		const { lineStart, lineEnd } = sectionInfo;
+
+		// We want to delete the whole block including the start and end lines
+		// and possibly the newline after it to avoid leaving a blank line.
+		const from = { line: lineStart, ch: 0 };
+		const to = { line: lineEnd + 1, ch: 0 }; // Go to the start of the next line to delete the newline
+
+		editor.replaceRange("", from, to);
+		new Notice("PDF embed deleted");
 	}
 
 	async getTotalPages(): Promise<number> {
