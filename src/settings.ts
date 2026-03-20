@@ -2,7 +2,6 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import PDFPageEmbedderPlugin from "./main";
 
 export interface PDFPageEmbedderSettings {
-	skipFirstPages: number;
 	useNativeViewer: boolean;
 	showPageNumber: boolean;
 	openAtPage: boolean;
@@ -11,7 +10,6 @@ export interface PDFPageEmbedderSettings {
 }
 
 export const DEFAULT_SETTINGS: PDFPageEmbedderSettings = {
-	skipFirstPages: 0,
 	useNativeViewer: false,
 	showPageNumber: false,
 	openAtPage: true,
@@ -33,24 +31,6 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "PDF Page Embedder Settings" });
-
-		new Setting(containerEl)
-			.setName("Skip first pages")
-			.setDesc(
-				"Number of pages to skip from the beginning (useful for cover pages, title pages, etc.)",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("0")
-					.setValue(String(this.plugin.settings.skipFirstPages))
-					.onChange(async (value) => {
-						const numValue = parseInt(value);
-						if (!isNaN(numValue) && numValue >= 0) {
-							this.plugin.settings.skipFirstPages = numValue;
-							await this.plugin.saveSettings();
-						}
-					}),
-			);
 
 		new Setting(containerEl)
 			.setName("Use Obsidian native PDF viewer")
@@ -115,13 +95,13 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Render quality")
 			.setDesc(
-				"Controls the internal resolution of the renderer, not the display size of the embed. 1x is standard. 2x and 3x render at higher pixel densities (sharper) but use significantly more memory.",
+				"Controls the internal resolution of the renderer, not the display size of the embed. Low (2.0x) is standard Retina. Medium (3.0x) is high quality. High (4.0x) is ultra quality.",
 			)
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOption("low", "Low (1.0x)")
-					.addOption("medium", "Medium (2.0x)")
-					.addOption("high", "High (3.0x)")
+					.addOption("low", "Low (2.0x)")
+					.addOption("medium", "Medium (3.0x)")
+					.addOption("high", "High (4.0x)")
 					.setValue(this.plugin.settings.renderQuality)
 					.onChange(async (value) => {
 						this.plugin.settings.renderQuality = value as

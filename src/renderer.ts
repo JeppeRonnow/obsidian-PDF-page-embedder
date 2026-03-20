@@ -553,12 +553,12 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 	private getRenderScale(): number {
 		switch (this.settings.renderQuality) {
 			case "low":
-				return 1.0;
+				return 2.0;
 			case "high":
-				return 3.0;
+				return 4.0;
 			case "medium":
 			default:
-				return 2.0;
+				return 3.0;
 		}
 	}
 }

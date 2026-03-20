@@ -10,21 +10,14 @@ import { getPDFPageCount, generatePageEmbeds } from "./utils";
 import PDFPageEmbedderPlugin from "./main";
 
 export function registerCommands(plugin: PDFPageEmbedderPlugin) {
-	// Command 1: Embed all pages (with skip setting)
+	// Command 1: Embed all pages
 	plugin.addCommand({
 		id: "convert-pdf-to-pages",
 		name: "Embed PDF as individual pages",
 		editorCallback: (editor: Editor) => {
 			new PDFSelectorModal(plugin.app, async (file) => {
 				const pageCount = await getPDFPageCount(plugin.app, file);
-				const startPage = plugin.settings.skipFirstPages + 1;
-
-				if (startPage > pageCount) {
-					new Notice(
-						`PDF only has ${pageCount} pages. Cannot skip ${plugin.settings.skipFirstPages} pages.`,
-					);
-					return;
-				}
+				const startPage = 1;
 
 				const content = generatePageEmbeds(
 					file.name,
@@ -32,20 +25,13 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 					pageCount,
 					plugin.settings.useNativeViewer,
 				);
-				const pagesInserted =
-					pageCount - plugin.settings.skipFirstPages;
+				const pagesInserted = pageCount;
 
 				editor.replaceSelection(content);
 
-				if (plugin.settings.skipFirstPages > 0) {
-					new Notice(
-						`Inserted ${pagesInserted} pages from ${file.name} (skipped first ${plugin.settings.skipFirstPages})`,
-					);
-				} else {
-					new Notice(
-						`Inserted ${pagesInserted} pages from ${file.name}`,
-					);
-				}
+				new Notice(
+					`Inserted ${pagesInserted} pages from ${file.name}`,
+				);
 			}).open();
 		},
 	});
