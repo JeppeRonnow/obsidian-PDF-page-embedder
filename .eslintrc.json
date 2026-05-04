@@ -1,0 +1,5 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["obsidian"],
+  "extends": ["plugin:obsidian/recommended"]
+}

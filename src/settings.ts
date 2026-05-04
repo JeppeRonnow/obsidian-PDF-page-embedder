@@ -30,12 +30,12 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "PDF Page Embedder Settings" });
+		new Setting(containerEl).setHeading().setName("PDF page embedder settings");
 
 		new Setting(containerEl)
 			.setName("Use Obsidian native PDF viewer")
 			.setDesc(
-				"Generate ![[pdf#page=X]] syntax instead of custom code blocks. Not recommended (slower, less control).",
+				"Generate ![[pdf#page=x]] syntax instead of custom code blocks. Not recommended, as it is slower and offers less control.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -95,7 +95,7 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Render quality")
 			.setDesc(
-				"Controls the internal resolution of the renderer, not the display size of the embed. Low (2.0x) is standard Retina. Medium (3.0x) is high quality. High (4.0x) is ultra quality.",
+				"Controls the internal resolution of the renderer, not the display size of the embed. Low (2.0x) is standard retina. Medium (3.0x) is high quality. High (4.0x) is ultra quality.",
 			)
 			.addDropdown((dropdown) =>
 				dropdown

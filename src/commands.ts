@@ -15,23 +15,25 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 		id: "convert-pdf-to-pages",
 		name: "Embed PDF as individual pages",
 		editorCallback: (editor: Editor) => {
-			new PDFSelectorModal(plugin.app, async (file) => {
-				const pageCount = await getPDFPageCount(plugin.app, file);
-				const startPage = 1;
+			new PDFSelectorModal(plugin.app, (file) => {
+				void (async () => {
+					const pageCount = await getPDFPageCount(plugin.app, file);
+					const startPage = 1;
 
-				const content = generatePageEmbeds(
-					file.name,
-					startPage,
-					pageCount,
-					plugin.settings.useNativeViewer,
-				);
-				const pagesInserted = pageCount;
+					const content = generatePageEmbeds(
+						file.name,
+						startPage,
+						pageCount,
+						plugin.settings.useNativeViewer,
+					);
+					const pagesInserted = pageCount;
 
-				editor.replaceSelection(content);
+					editor.replaceSelection(content);
 
-				new Notice(
-					`Inserted ${pagesInserted} pages from ${file.name}`,
-				);
+					new Notice(
+						`Inserted ${pagesInserted} pages from ${file.name}`,
+					);
+				})();
 			}).open();
 		},
 	});
@@ -41,23 +43,25 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 		id: "embed-pdf-from-page",
 		name: "Embed PDF from page to end",
 		editorCallback: (editor: Editor) => {
-			new PDFSelectorModal(plugin.app, async (file) => {
-				const pageCount = await getPDFPageCount(plugin.app, file);
+			new PDFSelectorModal(plugin.app, (file) => {
+				void (async () => {
+					const pageCount = await getPDFPageCount(plugin.app, file);
 
-				new StartPageModal(plugin.app, file, pageCount, (startPage) => {
-					const content = generatePageEmbeds(
-						file.name,
-						startPage,
-						pageCount,
-						plugin.settings.useNativeViewer,
-					);
-					const pagesInserted = pageCount - startPage + 1;
+					new StartPageModal(plugin.app, file, pageCount, (startPage) => {
+						const content = generatePageEmbeds(
+							file.name,
+							startPage,
+							pageCount,
+							plugin.settings.useNativeViewer,
+						);
+						const pagesInserted = pageCount - startPage + 1;
 
-					editor.replaceSelection(content);
-					new Notice(
-						`Inserted ${pagesInserted} pages from ${file.name} (page ${startPage} to ${pageCount})`,
-					);
-				}).open();
+						editor.replaceSelection(content);
+						new Notice(
+							`Inserted ${pagesInserted} pages from ${file.name} (page ${startPage} to ${pageCount})`,
+						);
+					}).open();
+				})();
 			}).open();
 		},
 	});
@@ -67,28 +71,30 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 		id: "embed-pdf-page-range",
 		name: "Embed PDF page range",
 		editorCallback: (editor: Editor) => {
-			new PDFSelectorModal(plugin.app, async (file) => {
-				const pageCount = await getPDFPageCount(plugin.app, file);
+			new PDFSelectorModal(plugin.app, (file) => {
+				void (async () => {
+					const pageCount = await getPDFPageCount(plugin.app, file);
 
-				new PageRangeModal(
-					plugin.app,
-					file,
-					pageCount,
-					(startPage, endPage) => {
-						const content = generatePageEmbeds(
-							file.name,
-							startPage,
-							endPage,
-							plugin.settings.useNativeViewer,
-						);
-						const pagesInserted = endPage - startPage + 1;
+					new PageRangeModal(
+						plugin.app,
+						file,
+						pageCount,
+						(startPage, endPage) => {
+							const content = generatePageEmbeds(
+								file.name,
+								startPage,
+								endPage,
+								plugin.settings.useNativeViewer,
+							);
+							const pagesInserted = endPage - startPage + 1;
 
-						editor.replaceSelection(content);
-						new Notice(
-							`Inserted ${pagesInserted} pages from ${file.name} (page ${startPage} to ${endPage})`,
-						);
-					},
-				).open();
+							editor.replaceSelection(content);
+							new Notice(
+								`Inserted ${pagesInserted} pages from ${file.name} (page ${startPage} to ${endPage})`,
+							);
+						},
+					).open();
+				})();
 			}).open();
 		},
 	});
@@ -98,23 +104,25 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 		id: "embed-pdf-single-page",
 		name: "Embed single PDF page",
 		editorCallback: (editor: Editor) => {
-			new PDFSelectorModal(plugin.app, async (file) => {
-				const pageCount = await getPDFPageCount(plugin.app, file);
+			new PDFSelectorModal(plugin.app, (file) => {
+				void (async () => {
+					const pageCount = await getPDFPageCount(plugin.app, file);
 
-				new SinglePageModal(plugin.app, file, pageCount, (page) => {
-					let content: string;
+					new SinglePageModal(plugin.app, file, pageCount, (page) => {
+						let content: string;
 
-					if (plugin.settings.useNativeViewer) {
-						content = `![[${file.name}#page=${page}]]\n`;
-					} else {
-						content = "```pdf-page\n";
-						content += `${file.name}#${page}\n`;
-						content += "```\n";
-					}
+						if (plugin.settings.useNativeViewer) {
+							content = `![[${file.name}#page=${page}]]\n`;
+						} else {
+							content = "```pdf-page\n";
+							content += `${file.name}#${page}\n`;
+							content += "```\n";
+						}
 
-					editor.replaceSelection(content);
-					new Notice(`Inserted page ${page} from ${file.name}`);
-				}).open();
+						editor.replaceSelection(content);
+						new Notice(`Inserted page ${page} from ${file.name}`);
+					}).open();
+				})();
 			}).open();
 		},
 	});
@@ -126,72 +134,74 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 		editorCallback: (editor: Editor) => {
 			new OldFilenameModal(plugin.app, (oldFilename) => {
 				// After getting old filename, show PDF selector for new file
-				new PDFSelectorModal(plugin.app, async (newFile) => {
-					const content = editor.getValue();
-					const newFilename = newFile.name;
+				new PDFSelectorModal(plugin.app, (newFile) => {
+					void (async () => {
+						const content = editor.getValue();
+						const newFilename = newFile.name;
 
-					// Count occurrences before replacing
-					let occurrenceCount = 0;
+						// Count occurrences before replacing
+						let occurrenceCount = 0;
 
-					// Replace in pdf-page blocks (both formats)
-					// Format 1: filename.pdf#5 or filename.pdf#5|width:100%
-					const simpleRegex = new RegExp(
-						`(${escapeRegExp(oldFilename)})(#\\d+)`,
-						"g",
-					);
-					occurrenceCount += (content.match(simpleRegex) || [])
-						.length;
-
-					// Format 2: file: filename.pdf
-					const multilineRegex = new RegExp(
-						`(file:\\s*)${escapeRegExp(oldFilename)}`,
-						"gi",
-					);
-					occurrenceCount += (content.match(multilineRegex) || [])
-						.length;
-
-					// Replace in native Obsidian links: ![[filename.pdf]] or ![[filename.pdf#page=5]]
-					const nativeLinkRegex = new RegExp(
-						`(!\\[\\[)${escapeRegExp(oldFilename)}((?:#page=\\d+)?\\]\\])`,
-						"g",
-					);
-					occurrenceCount += (content.match(nativeLinkRegex) || [])
-						.length;
-
-					if (occurrenceCount === 0) {
-						new Notice(
-							`No references to "${oldFilename}" found in current file`,
+						// Replace in pdf-page blocks (both formats)
+						// Format 1: filename.pdf#5 or filename.pdf#5|width:100%
+						const simpleRegex = new RegExp(
+							`(${escapeRegExp(oldFilename)})(#\\d+)`,
+							"g",
 						);
-						return;
-					}
+						occurrenceCount += (content.match(simpleRegex) || [])
+							.length;
 
-					// Perform replacements
-					let updatedContent = content;
+						// Format 2: file: filename.pdf
+						const multilineRegex = new RegExp(
+							`(file:\\s*)${escapeRegExp(oldFilename)}`,
+							"gi",
+						);
+						occurrenceCount += (content.match(multilineRegex) || [])
+							.length;
 
-					// Replace in pdf-page blocks - simple format
-					updatedContent = updatedContent.replace(
-						simpleRegex,
-						`${newFilename}$2`,
-					);
+						// Replace in native Obsidian links: ![[filename.pdf]] or ![[filename.pdf#page=5]]
+						const nativeLinkRegex = new RegExp(
+							`(!\\[\\[)${escapeRegExp(oldFilename)}((?:#page=\\d+)?\\]\\])`,
+							"g",
+						);
+						occurrenceCount += (content.match(nativeLinkRegex) || [])
+							.length;
 
-					// Replace in pdf-page blocks - multiline format
-					updatedContent = updatedContent.replace(
-						multilineRegex,
-						`$1${newFilename}`,
-					);
+						if (occurrenceCount === 0) {
+							new Notice(
+								`No references to "${oldFilename}" found in current file`,
+							);
+							return;
+						}
 
-					// Replace in native links
-					updatedContent = updatedContent.replace(
-						nativeLinkRegex,
-						`$1${newFilename}$2`,
-					);
+						// Perform replacements
+						let updatedContent = content;
 
-					// Update the editor content
-					editor.setValue(updatedContent);
+						// Replace in pdf-page blocks - simple format
+						updatedContent = updatedContent.replace(
+							simpleRegex,
+							`${newFilename}$2`,
+						);
 
-					new Notice(
-						`Replaced ${occurrenceCount} reference(s) from "${oldFilename}" to "${newFilename}"`,
-					);
+						// Replace in pdf-page blocks - multiline format
+						updatedContent = updatedContent.replace(
+							multilineRegex,
+							`$1${newFilename}`,
+						);
+
+						// Replace in native links
+						updatedContent = updatedContent.replace(
+							nativeLinkRegex,
+							`$1${newFilename}$2`,
+						);
+
+						// Update the editor content
+						editor.setValue(updatedContent);
+
+						new Notice(
+							`Replaced ${occurrenceCount} reference(s) from "${oldFilename}" to "${newFilename}"`,
+						);
+					})();
 				}).open();
 			}).open();
 		},

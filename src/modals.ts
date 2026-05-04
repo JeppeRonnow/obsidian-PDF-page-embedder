@@ -347,7 +347,7 @@ export class OldFilenameModal extends Modal {
 		contentEl.empty();
 		contentEl.createEl("h2", { text: "Replace PDF filename" });
 		contentEl.createEl("p", {
-			text: "Enter the old/broken PDF filename to replace (e.g., 'oldfile.pdf')",
+			text: "Enter the old or broken PDF filename to replace (e.g., 'Example.pdf')",
 		});
 
 		new Setting(contentEl)
@@ -355,7 +355,7 @@ export class OldFilenameModal extends Modal {
 			.setDesc("The filename that needs to be replaced")
 			.addText((text) =>
 				text
-					.setPlaceholder("oldfile.pdf")
+					.setPlaceholder("Example.pdf")
 					.setValue(this.filenameInput)
 					.onChange((value) => {
 						this.filenameInput = value;

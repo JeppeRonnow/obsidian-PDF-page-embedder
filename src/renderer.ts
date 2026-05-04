@@ -61,21 +61,25 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		this.alignment = alignment;
 	}
 
-	async onload() {
-		// Register settings change listener
-		this.settingsChangeHandler = () => {
-			this.reloadPage();
-		};
+	onload() {
+		void this.loadPdf();
+	}
+
+	async loadPdf() {
+			// Register settings change listener
+			this.settingsChangeHandler = () => {
+				void this.reloadPage();
+			};
+
 		this.events.on("settings-changed", this.settingsChangeHandler);
 
 		try {
 			// Set up PDF.js worker (load from plugin directory)
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const adapter = (this.app.vault as any).adapter;
+					const adapter = (this.app.vault as unknown as { adapter: any }).adapter;
 					const workerPath = `${this.manifestDir}/pdf.worker.min.js`;
-					console.log(
+					console.debug(
 						"[PDF.js] Attempting to load worker from:",
 						workerPath,
 					);
@@ -87,16 +91,16 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 					const blobUrl = URL.createObjectURL(blob);
 					this.plugin.workerBlobUrl = blobUrl;
 					pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
-					console.log("[PDF.js] Worker loaded from local file");
+					console.debug("[PDF.js] Worker loaded from local file");
 				} catch (error) {
-					console.error(
+					console.warn(
 						"[PDF.js] Failed to load local worker:",
 						error,
 					);
 					// Fallback: use CDN as last resort
 					pdfjsLib.GlobalWorkerOptions.workerSrc =
 						"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-					console.log("[PDF.js] Using CDN worker as fallback");
+					console.debug("[PDF.js] Using CDN worker as fallback");
 				}
 			}
 
@@ -151,11 +155,11 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			// Apply alignment to container
 			if (this.alignment === "center") {
-				container.style.textAlign = "center";
+				container.setCssProps({ "text-align": "center" });
 			} else if (this.alignment === "right") {
-				container.style.textAlign = "right";
+				container.setCssProps({ "text-align": "right" });
 			} else {
-				container.style.textAlign = "left";
+				container.setCssProps({ "text-align": "left" });
 			}
 
 			// Get the specific page
@@ -168,30 +172,35 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 
 			// Apply custom width to wrapper if specified
 			if (this.width) {
-				canvasWrapper.style.width = this.width;
+				canvasWrapper.setCssProps({ width: this.width });
 			} else {
 				// Default: fill container width
-				canvasWrapper.style.width = "100%";
+				canvasWrapper.setCssProps({ width: "100%" });
 			}
-			canvasWrapper.style.display = "inline-block";
+			canvasWrapper.setCssProps({ display: "inline-block" });
 
 			// Add click handler to open PDF in native viewer (if enabled)
 			if (this.settings.openAtPage) {
-				canvasWrapper.style.cursor = "pointer";
+				canvasWrapper.setCssProps({ cursor: "pointer" });
 
 				// Only add transition and hover effects if animations are enabled
 				if (this.settings.enableHoverAnimation) {
-					canvasWrapper.style.transition =
-						"opacity 0.2s, transform 0.2s";
+					canvasWrapper.setCssProps({
+						transition: "opacity 0.2s, transform 0.2s",
+					});
 
 					// Add hover effect
 					canvasWrapper.addEventListener("mouseenter", () => {
-						canvasWrapper.style.opacity = "0.85";
-						canvasWrapper.style.transform = "scale(0.99)";
+						canvasWrapper.setCssProps({
+							opacity: "0.85",
+							transform: "scale(0.99)",
+						});
 					});
 					canvasWrapper.addEventListener("mouseleave", () => {
-						canvasWrapper.style.opacity = "1";
-						canvasWrapper.style.transform = "scale(1)";
+						canvasWrapper.setCssProps({
+							opacity: "1",
+							transform: "scale(1)",
+						});
 					});
 				}
 
@@ -207,7 +216,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Add context menu for copying page as image
 			canvasWrapper.addEventListener("contextmenu", (event) => {
 				event.preventDefault();
-				this.showContextMenu(event);
+				void this.showContextMenu(event);
 			});
 
 			// Create canvas for rendering
@@ -215,9 +224,11 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			this.canvas.addClass("pdf-page-canvas");
 
 			// Make canvas responsive with CSS - always fill wrapper
-			this.canvas.style.width = "100%";
-			this.canvas.style.height = "auto";
-			this.canvas.style.display = "block";
+			this.canvas.setCssProps({
+				width: "100%",
+				height: "auto",
+				display: "block",
+			});
 
 			// Get viewport - render at a consistent high resolution
 			// CSS will scale it down to fit the container
@@ -266,11 +277,13 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 					cls: "pdf-page-number",
 					text: `Page ${pageNumber}`,
 				});
-				pageNumberEl.style.textAlign = "center";
-				pageNumberEl.style.marginTop = "1px";
-				pageNumberEl.style.marginBottom = "3px";
-				pageNumberEl.style.fontSize = "0.9em";
-				pageNumberEl.style.color = "var(--text-muted)";
+				pageNumberEl.setCssProps({
+					"text-align": "center",
+					"margin-top": "1px",
+					"margin-bottom": "3px",
+					"font-size": "0.9em",
+					color: "var(--text-muted)",
+				});
 			}
 		} catch (error) {
 			console.error(
@@ -321,8 +334,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				this.canvas.height = 1;
 				this.canvas = null;
 			}
-		} catch (e) {
-			console.error("Error during canvas cleanup:", e);
+		} catch {
+			console.error("Error during canvas cleanup");
 		} finally {
 			// Always release PDF from cache and clear container
 			this.pdfCache.release(this.file.path);
@@ -456,7 +469,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		}
 	}
 
-	async deleteEmbed() {
+	deleteEmbed() {
 		// Get the section info for this code block from the post-processor context
 		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
 		if (!sectionInfo) {
@@ -465,8 +478,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		}
 
 		// Get the active editor - we need it to modify the source
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const activeEditor = (this.app.workspace as any).activeEditor;
+		const activeEditor = (this.app.workspace as unknown as { activeEditor: { editor: Editor } }).activeEditor;
 		const editor = activeEditor?.editor;
 		if (!editor) {
 			new Notice("No active editor found to delete embed");
@@ -500,7 +512,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		}
 	}
 
-	async changePageInSource(newPage: number) {
+	changePageInSource(newPage: number) {
 		// Get the section info for this code block from the post-processor context
 		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
 		if (!sectionInfo) {
@@ -509,8 +521,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		}
 
 		// Get the active editor - we need it to modify the source
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const activeEditor = (this.app.workspace as any).activeEditor;
+		const activeEditor = (this.app.workspace as unknown as { activeEditor: { editor: Editor } }).activeEditor;
 		const editor = activeEditor?.editor;
 		if (!editor) {
 			new Notice("No active editor found to update page");
