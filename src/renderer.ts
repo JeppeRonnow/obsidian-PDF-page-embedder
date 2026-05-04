@@ -7,6 +7,7 @@ import {
 	MenuItem,
 	Notice,
 	Events,
+	Editor,
 } from "obsidian";
 import { PDFCache } from "./pdf-cache";
 import { PDFPageEmbedderSettings } from "./settings";
