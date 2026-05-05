@@ -97,9 +97,9 @@ export class PDFCache {
 		if (oldestPath) {
 			const entry = this.cache.get(oldestPath);
 			if (entry) {
-				entry.pdf.destroy();
+				void entry.pdf.destroy();
 				this.cache.delete(oldestPath);
-				console.log(`Evicted PDF from cache: ${oldestPath}`);
+				console.debug(`Evicted PDF from cache: ${oldestPath}`);
 			}
 		}
 	}
@@ -111,9 +111,9 @@ export class PDFCache {
 		for (const [path, entry] of this.cache.entries()) {
 			// Remove entries that haven't been used in a while and aren't in use
 			if (entry.refCount <= 0 && now - entry.lastUsed > maxAge) {
-				entry.pdf.destroy();
+				void entry.pdf.destroy();
 				this.cache.delete(path);
-				console.log(`Cleaned up unused PDF: ${path}`);
+				console.debug(`Cleaned up unused PDF: ${path}`);
 			}
 		}
 	}
@@ -129,7 +129,7 @@ export class PDFCache {
 		this.pending.clear();
 
 		for (const entry of this.cache.values()) {
-			entry.pdf.destroy();
+			void entry.pdf.destroy();
 		}
 		this.cache.clear();
 	}

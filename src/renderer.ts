@@ -8,6 +8,7 @@ import {
 	Notice,
 	Events,
 	Editor,
+	DataAdapter,
 } from "obsidian";
 import { PDFCache } from "./pdf-cache";
 import { PDFPageEmbedderSettings } from "./settings";
@@ -78,7 +79,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Set up PDF.js worker (load from plugin directory)
 			if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
 				try {
-					const adapter = (this.app.vault as unknown as { adapter: any }).adapter;
+					const adapter = (this.app.vault as unknown as { adapter: DataAdapter }).adapter;
 					const workerPath = `${this.manifestDir}/pdf.worker.min.js`;
 					console.debug(
 						"[PDF.js] Attempting to load worker from:",
@@ -137,7 +138,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			if (this.renderTask) {
 				try {
 					this.renderTask.cancel();
-				} catch (e) {
+				} catch {
 					// Ignore errors on cancel
 				}
 				this.renderTask = null;
@@ -205,8 +206,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 					});
 				}
 
-				canvasWrapper.addEventListener("dblclick", async () => {
-					await this.app.workspace.openLinkText(
+				canvasWrapper.addEventListener("dblclick", () => {
+					void this.app.workspace.openLinkText(
 						`${this.file.path}#page=${this.pageNumber}`,
 						"",
 						false,
@@ -217,7 +218,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			// Add context menu for copying page as image
 			canvasWrapper.addEventListener("contextmenu", (event) => {
 				event.preventDefault();
-				void this.showContextMenu(event);
+				this.showContextMenu(event).catch((e) => console.error(e));
 			});
 
 			// Create canvas for rendering
@@ -313,7 +314,7 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			if (this.renderTask) {
 				try {
 					this.renderTask.cancel();
-				} catch (e) {
+				} catch {
 					// Ignore errors on cancel
 				}
 				this.renderTask = null;
@@ -383,8 +384,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Previous page")
 					.setIcon("arrow-left")
-					.onClick(async () => {
-						await this.changePageInSource(this.pageNumber - 1);
+					.onClick(() => {
+						this.changePageInSource(this.pageNumber - 1);
 					});
 			});
 		}
@@ -393,8 +394,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			menu.addItem((item: MenuItem) => {
 				item.setTitle("Next page")
 					.setIcon("arrow-right")
-					.onClick(async () => {
-						await this.changePageInSource(this.pageNumber + 1);
+					.onClick(() => {
+						this.changePageInSource(this.pageNumber + 1);
 					});
 			});
 		}
@@ -426,8 +427,8 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 		menu.addItem((item: MenuItem) => {
 			item.setTitle("Delete embed")
 				.setIcon("trash")
-				.onClick(async () => {
-					await this.deleteEmbed();
+				.onClick(() => {
+					this.deleteEmbed();
 				});
 		});
 

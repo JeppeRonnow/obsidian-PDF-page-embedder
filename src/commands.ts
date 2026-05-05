@@ -135,7 +135,7 @@ export function registerCommands(plugin: PDFPageEmbedderPlugin) {
 			new OldFilenameModal(plugin.app, (oldFilename) => {
 				// After getting old filename, show PDF selector for new file
 				new PDFSelectorModal(plugin.app, (newFile) => {
-					void (async () => {
+					void (() => {
 						const content = editor.getValue();
 						const newFilename = newFile.name;
 
