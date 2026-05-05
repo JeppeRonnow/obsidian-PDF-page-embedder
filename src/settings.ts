@@ -35,7 +35,7 @@ export class PDFPageEmbedderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Use Obsidian native PDF viewer")
 			.setDesc(
-				"Generate ![[pdf#page=x]] syntax instead of custom code blocks. Not recommended, as it is slower and offers less control.",
+				"Generate ![[pdf#page=x]] syntax instead of custom code blocks, which is not recommended as it is slower and offers less control.",
 			)
 			.addToggle((toggle) =>
 				toggle
