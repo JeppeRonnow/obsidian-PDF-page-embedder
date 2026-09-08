@@ -11,7 +11,7 @@ Quickly embed all pages of a PDF file as individual page references in your Obsi
 - Fast, clean single-page rendering — no scrolling, no UI clutter
 - Page rotation support (90°, 180°, 270°)
 - Alignment options (left, center, right)
-- Text selection and copying from embedded pages
+- Copy text from embedded PDF pages
 - Optional page number display
 - Double-click to open PDF at specific page
 

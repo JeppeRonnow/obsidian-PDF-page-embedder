@@ -150,7 +150,6 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				this.canvas.height = 1;
 				this.canvas = null;
 			}
-
 			const container = this.containerEl;
 			container.empty();
 			container.addClass("pdf-page-embed-container");
@@ -407,6 +406,14 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 				.setIcon("image")
 				.onClick(async () => {
 					await this.copyPageAsImage();
+			});
+		});
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle("Copy page text")
+				.setIcon("clipboard")
+				.onClick(() => {
+					void this.copyPageAsText();
 				});
 		});
 
@@ -468,6 +475,46 @@ export class PDFPageRenderer extends MarkdownRenderChild {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
 			new Notice(`Failed to copy image: ${errorMessage}`);
+		}
+	}
+
+	async copyPageAsText() {
+		let pdf: PDFDocumentProxy | null = null;
+
+		try {
+			pdf = await this.pdfCache.get(this.file.path, async () => {
+				const arrayBuffer = await this.app.vault.readBinary(this.file);
+				const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+				return await loadingTask.promise;
+			});
+
+			const page = await pdf.getPage(this.pageNumber);
+			const textContent = await page.getTextContent();
+			const text = textContent.items
+				.map((item) => {
+					if (!("str" in item)) return "";
+					return `${item.str}${item.hasEOL ? "\n" : " "}`;
+				})
+				.join("")
+				.replace(/[ \t]+\n/g, "\n")
+				.trim();
+
+			if (!text) {
+				new Notice("No text found on this PDF page");
+				return;
+			}
+
+			await navigator.clipboard.writeText(text);
+			new Notice(`Text from page ${this.pageNumber} copied to clipboard`);
+		} catch (error) {
+			console.error("Error copying page text:", error);
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			new Notice(`Failed to copy text: ${errorMessage}`);
+		} finally {
+			if (pdf) {
+				this.pdfCache.release(this.file.path);
+			}
 		}
 	}
 
